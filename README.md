@@ -98,6 +98,16 @@ At the top of `products.js`:
 - Names: keep them under about 30 characters. The two typefaces do not include every Vietnamese accent (for example ọ, ỗ), so those letters show in a fallback font; names in English or without those accents look best.
 - To change a photo, you can save over it with the same name; the new one shows on the next reload.
 
+### For the real photo shoot
+
+The layout is built around photos that match each other:
+
+- One seamless cream backdrop for every piece, a touch darker than the page (about `#EEE8E0`), so each frame still reads as a print on the cream page.
+- One soft key light from the upper left, so shadows fall the same way in every photo.
+- Shot at 4:5, with the piece inside the central ~60% of the frame. Tablets, phones and wide screens crop the edges differently.
+- At least 2400 × 3000 px and sharp, so the zoom and the loupe show real nacre and orient, not enlarged pixels.
+- A dark backdrop only for a deliberate chapter of the collection. The page adapts (darker glass over dark photos), but a mixed set looks unplanned.
+
 ### Check your work
 
 Open `site/index.html` from your computer (or `npm run serve`). If anything in `products.js` is wrong, a note in the corner of the screen says what and where:
