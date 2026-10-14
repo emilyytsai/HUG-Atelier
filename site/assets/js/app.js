@@ -480,13 +480,24 @@
     if (zoom.badge === k) return endZoom();
     if (state.image !== 0) showImage(0);
     const [x, y] = toFrame(badge.at);
+    const wasZoomed = zoom.on;
     endZoom();
     zoom.badge = k;
     zoom.tx = x;
     zoom.ty = y;
+    if (!wasZoomed) {
+      zoom.x = x;
+      zoom.y = y;
+      el.mediaImg.style.setProperty("--ox", `${(x * 100).toFixed(2)}%`);
+      el.mediaImg.style.setProperty("--oy", `${(y * 100).toFixed(2)}%`);
+    }
+    // Bring the spot toward the centre, as far as the photo's edges allow.
+    const z = settings.zoom;
+    const shift = (p) => Math.min((z - 1) * p, Math.max(-(z - 1) * (1 - p), 0.5 - p));
+    el.mediaImg.style.setProperty("--sx", `${(shift(x) * el.media.clientWidth).toFixed(1)}px`);
+    el.mediaImg.style.setProperty("--sy", `${(shift(y) * el.media.clientHeight).toFixed(1)}px`);
     zoom.on = true;
     el.media.classList.add("is-zoomed", "is-detail");
-    el.badges.querySelectorAll("button.badge").forEach((b, n) => b.setAttribute("aria-pressed", String(n === k)));
     const tags = el.badges.querySelectorAll(".badge");
     tags.forEach((b) => b.matches("button") && b.setAttribute("aria-pressed", String(b === tags[k])));
     if (!zoom.raf) zoom.raf = requestAnimationFrame(tick);
@@ -786,6 +797,8 @@
     if (zoom.badge >= 0) {
       zoom.badge = -1;
       el.badges.querySelectorAll("button.badge").forEach((b) => b.setAttribute("aria-pressed", "false"));
+      el.mediaImg.style.removeProperty("--sx");
+      el.mediaImg.style.removeProperty("--sy");
     }
     el.media.classList.remove("is-zoomed", "is-detail");
     if (now) {
@@ -802,6 +815,8 @@
       zoom.badge = -1;
       el.media.classList.remove("is-detail");
       el.badges.querySelectorAll("button.badge").forEach((b) => b.setAttribute("aria-pressed", "false"));
+      el.mediaImg.style.removeProperty("--sx");
+      el.mediaImg.style.removeProperty("--sy");
     }
     aim(e);
     if (zoom.on || zoom.delay || state.busy || !fineHover.matches) return;

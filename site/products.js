@@ -51,9 +51,9 @@ window.HUG_ATELIER = {
       images: ["assets/products/tidal-strand.webp", "assets/products/tidal-strand-detail.webp"],
       alt: "A long strand of baroque freshwater pearls with a silver clasp, laid in a loose loop",
       badges: [
-        { label: "Luxury-Grade Silver", at: [0.5, 0.09] },
-        { label: "Organic Shape", at: [0.25, 0.42] },
-        { label: "Freshwater Pearls", at: [0.62, 0.78] },
+        { label: "Luxury-Grade Silver", at: [0.54, 0.095] },
+        { label: "Organic Shape", at: [0.15, 0.45] },
+        { label: "Freshwater Pearls", at: [0.45, 0.86] },
       ],
     },
     {
