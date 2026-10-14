@@ -8,7 +8,7 @@ Everything the public sees is in the **`site/`** folder. The rest of this reposi
 
 | How | Steps | Offline copy |
 | --- | --- | --- |
-| Hosted (best for events) | Drag the `site` folder onto [Netlify Drop](https://app.netlify.com/drop), or connect this repository to Netlify, Vercel or Cloudflare Pages (publish folder: `site`) | Yes |
+| Hosted (best for events) | Sign in to Netlify, then drag the `site` folder onto [Netlify Drop](https://app.netlify.com/drop); or connect this repository to Netlify, Vercel or Cloudflare Pages (publish folder: `site`) | Yes |
 | Straight from the folder | Double-click `site/index.html` | No |
 | On this computer | `npm run serve`, then open http://localhost:8080 | Yes |
 
@@ -21,10 +21,10 @@ Everything shown comes from one file: **`site/products.js`**. Edit it, save, rel
 **Opening the file:**
 
 - **Any computer:** [VS Code](https://code.visualstudio.com) is free and underlines mistakes in red.
-- **Mac, TextEdit:** choose Format › Make Plain Text, and turn off Edit › Substitutions › Smart Quotes. Curly quotes break the file.
+- **Mac, TextEdit:** choose Format › Make Plain Text, then TextEdit › Settings and untick "Smart quotes". Curly quotes break the file.
 - **Windows:** right-click › Open with › Notepad. Double-clicking a `.js` file tries to run it instead of opening it.
 
-**Two rules prevent almost every mistake:** every block ends with `},` (the last one too), and text goes between straight quotes `"like this"`.
+**Two rules prevent almost every mistake:** every line inside a block ends with a comma, and so does every block `},` (the last one too). Text goes between straight quotes `"like this"`.
 
 ### Add a piece
 
@@ -36,7 +36,7 @@ Everything shown comes from one file: **`site/products.js`**. Edit it, save, rel
   name: "Coral Drop Earrings",
   ref: "N° 008",
   images: ["assets/products/coral-drop.webp"],
-  alt: "Two baroque pearl drops on silver hooks"
+  alt: "Two baroque pearl drops on silver hooks",
 },
 ```
 
@@ -57,7 +57,7 @@ Delete its block, or add `hidden: true` to keep it for later:
 Every piece shows the three default badges (`defaultBadges` near the top of `products.js`). Give a piece its own list to override them, or `badges: []` for none:
 
 ```js
-badges: ["Luxury-Grade Silver", "Organic Shape", "Freshwater Pearls", "Cluster Setting"]
+badges: ["Luxury-Grade Silver", "Organic Shape", "Freshwater Pearls", "Cluster Setting"],
 ```
 
 A badge can also point at a spot on the main photo. Tapping it glides the zoom there, so "Luxury-Grade Silver" can show the clasp:
@@ -65,18 +65,18 @@ A badge can also point at a spot on the main photo. Tapping it glides the zoom t
 ```js
 badges: [
   { label: "Luxury-Grade Silver", at: [0.5, 0.08] },
-  "Organic Shape"
-]
+  "Organic Shape",
+],
 ```
 
-`at` is `[across, down]` from 0 to 1: `[0, 0]` is the top-left corner of the photo, `[0.5, 0.5]` the centre. To find the numbers, open the page from your computer, open the piece, and Option-click (Mac) or Alt-click (Windows) the spot on the photo. The numbers appear on screen and are copied, ready to paste.
+`at` is `[across, down]` from 0 to 1: `[0, 0]` is the top-left corner of the photo, `[0.5, 0.5]` the centre. To find the numbers, open the page from your computer, open the piece, and Option-click (Mac) or Alt-click (Windows) the spot on the photo. A ready-made line such as `{ label: "", at: [0.42, 0.61] },` appears on screen and is copied; paste it into `badges` and type the label between the quotes.
 
 ### Add detail photos
 
 List more than one photo. The first is the main photo; the others appear as dots under it in the piece view.
 
 ```js
-images: ["assets/products/tidal-strand.webp", "assets/products/tidal-strand-detail.webp"]
+images: ["assets/products/tidal-strand.webp", "assets/products/tidal-strand-detail.webp"],
 ```
 
 ### Settings
@@ -95,20 +95,23 @@ At the top of `products.js`:
 - Portrait, 4:5 (for example 1600 × 2000 px). Other shapes are cropped to fit.
 - `.webp`, `.jpg`, `.png` or `.avif`, ideally under 400 KB each. Any photo editor can export these; [Squoosh](https://squoosh.app) does it in the browser.
 - Keep the piece near the centre; the edges get cropped on phones.
+- Names: keep them under about 30 characters. The two typefaces do not include every Vietnamese accent (for example ọ, ỗ), so those letters show in a fallback font; names in English or without those accents look best.
 - To change a photo, you can save over it with the same name; the new one shows on the next reload.
 
 ### Check your work
 
 Open `site/index.html` from your computer (or `npm run serve`). If anything in `products.js` is wrong, a note in the corner of the screen says what and where:
 
-- a typo that stops the file from loading, and the line it is on
+- a typo that stops the file from loading, with its line number when opened through `npm run serve` (a page opened straight from the folder cannot see line numbers)
 - a misspelled field (`hiden` → "Did you mean hidden?")
 - a photo that is missing or has the wrong name
 - text that was too long and got shortened
 
 On the hosted site the notes stay hidden from clients; add `?check` to the address to see them there (for example `https://your-site/?check`).
 
-Before publishing, `npm run check-products` also confirms that every photo's name matches its file exactly, including capital letters. Macs ignore the difference but hosting does not, so a photo can show on your Mac and vanish online.
+Before publishing, `npm run check-products` shows the same notes and also confirms that every photo's name matches its file exactly, including capital letters. Macs ignore the difference but hosting does not, so a photo can show on your Mac and vanish online. It also lists photos in the folder that no piece uses (they are still public once hosted).
+
+To run it: on a Mac, right-click the project folder › New Terminal at Folder; on Windows, right-click › Open in Terminal. Then type `npm run check-products` and press Enter. It needs [Node.js](https://nodejs.org).
 
 ### Publish an update
 

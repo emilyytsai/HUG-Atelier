@@ -12,26 +12,30 @@
  *                 Portrait 4:5 works best (for example 1600 x 2000 px).
  *                 The first photo is the main one; add more for detail views.
  *
- * Every block ends with  },  (a closing brace and a comma), the last one too.
- * Text goes between straight quotes "like this", not curly ones.
+ * Every line inside a block ends with a comma, and so does every block  },
+ * the last one too. Text goes between straight quotes "like this", not
+ * curly ones.
  *
  * Fields
- *   name     Required. Shown as the title.
+ *   name     Required. Shown as the title. Under 30 characters reads best.
  *   images   Required. One or more photos: ["assets/products/name.webp"].
  *            A bare file name like "name.webp" also works.
  *   alt      Optional. Short description of the photo for screen readers.
- *   ref      Optional. Small reference above the title, e.g. "N° 014".
+ *   ref      Optional. Small reference above the title: "N° 014", or just
+ *            the number 14, which shows as N° 014.
  *   badges   Optional. Replaces the default badges for this piece only.
  *            A badge can point at a spot on the main photo:
  *            { label: "Luxury-Grade Silver", at: [0.5, 0.08] }
  *            at = [across, down], from 0 to 1. To find the numbers, open the
- *            page from your computer, open the piece and click the spot.
+ *            page from your computer, open the piece, and Option-click (Mac)
+ *            or Alt-click (Windows) the spot. The line is copied for you.
  *   hidden   Optional. true hides the piece without deleting it.
  *   id       Optional. Name used in the page link (#tidal-strand). Made from
  *            the name if left out.
  *
  * Checking your work: open index.html from your computer (or add ?check to
  * the address). If something is wrong, a note on screen says what and where.
+ * For line numbers, use  npm run serve  or  npm run check-products.
  */
 
 window.HUG_ATELIER = {

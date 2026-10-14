@@ -6,7 +6,7 @@
  *
  * Bump VERSION after large changes to clear old copies on every device.
  */
-const VERSION = "v3";
+const VERSION = "v4";
 const SHELL = `hug-shell-${VERSION}`;
 const MEDIA = `hug-media-${VERSION}`;
 
@@ -16,6 +16,7 @@ const CORE = [
   "products.js",
   "assets/css/app.css",
   "assets/js/guard.js",
+  "assets/js/catalog.js",
   "assets/js/app.js",
   "assets/fonts/bodoni-moda-latin.woff2",
   "assets/fonts/bodoni-moda-latin-ext.woff2",

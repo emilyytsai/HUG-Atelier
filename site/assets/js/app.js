@@ -2,169 +2,27 @@
 (() => {
   "use strict";
 
-  const DEFAULT_BADGES = ["Luxury-Grade Silver", "Organic Shape", "Freshwater Pearls"];
   const LOG = "HUG Atelier:";
 
   // ------------------------------------------------------------ catalog ---
 
-  // Problems found in products.js. Always in the console; also on screen when
-  // the page is opened from this computer, or with ?check in the address.
-  const notes = [];
+  // catalog.js reads products.js and notes anything that looks wrong. Notes go
+  // to the console, and on screen when the page is opened from this computer
+  // or with ?check in the address.
+  const catalog = window.HUG_readCatalog
+    ? window.HUG_readCatalog(window.HUG_ATELIER, window.HUG_ATELIER_ERROR)
+    : {
+        settings: Object.freeze({ rotateMs: 4000, idleMs: 90000, zoom: 2 }),
+        pieces: Object.freeze([]),
+        notes: ["assets/js/catalog.js did not load. Check that it is in the assets/js folder."],
+      };
+  const { settings, pieces } = catalog;
+  const notes = catalog.notes.map((n) => (typeof n === "string" ? n : n.text));
+  notes.forEach((text) => console.warn(LOG, text));
   const note = (text) => {
     notes.push(text);
     console.warn(LOG, text);
   };
-
-  const source = window.HUG_ATELIER && typeof window.HUG_ATELIER === "object" ? window.HUG_ATELIER : {};
-  if (!window.HUG_ATELIER) {
-    const typo = window.HUG_ATELIER_ERROR;
-    note(
-      typo
-        ? `products.js has a mistake${typo.line ? ` near line ${typo.line}` : ""}: usually a missing comma, bracket or straight quote " ${typo.line ? "on that line or just above it" : "where you last edited"}. Nothing can show until it is fixed.`
-        : "products.js did not load. Check that the file is next to index.html and is named products.js.",
-    );
-  }
-
-  // "Did you mean": catches typos in field names, which would otherwise be ignored.
-  const distance = (a, b) => {
-    const row = Array.from({ length: b.length + 1 }, (_, i) => i);
-    for (let i = 1; i <= a.length; i++) {
-      let prev = row[0];
-      row[0] = i;
-      for (let j = 1; j <= b.length; j++) {
-        const keep = row[j];
-        row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
-        prev = keep;
-      }
-    }
-    return row[b.length];
-  };
-  const checkKeys = (obj, known, where) => {
-    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return;
-    Object.keys(obj).forEach((key) => {
-      if (known.includes(key)) return;
-      const near = known.find((k) => k.toLowerCase() === key.toLowerCase() || distance(k.toLowerCase(), key.toLowerCase()) <= 2);
-      note(`${where}: "${key}" is not a known field${near ? `. Did you mean "${near}"?` : ". It is ignored."}`);
-    });
-  };
-  checkKeys(source, ["settings", "defaultBadges", "pieces"], "products.js");
-
-  const clampNum = (value, min, max, fallback, label) => {
-    if (value === undefined) return fallback;
-    const n = typeof value === "string" ? parseFloat(value) : Number(value);
-    if (!Number.isFinite(n)) {
-      note(`settings: ${label} should be a number, like ${fallback}. Using ${fallback}.`);
-      return fallback;
-    }
-    if (n < min || n > max) note(`settings: ${label} goes from ${min} to ${max}. Using ${Math.min(max, Math.max(min, n))}.`);
-    return Math.min(max, Math.max(min, n));
-  };
-  // Long text is cut at a word, with a note, rather than mid-word.
-  const cleanText = (value, max, where) => {
-    if (typeof value === "number") value = String(value);
-    if (typeof value !== "string") return "";
-    const text = value.replace(/\s+/g, " ").trim();
-    if (text.length <= max) return text;
-    const cut = text.slice(0, max + 1).replace(/\s+\S*$/, "") || text.slice(0, max);
-    if (where) note(`${where} is longer than ${max} characters and was shortened to "${cut}".`);
-    return cut;
-  };
-  const unit = (n) => Math.min(1, Math.max(0, Number(n)));
-
-  // A badge is plain text, or { label, at: [x, y] } to point at a spot on the
-  // main photo (0-1 from the left and from the top).
-  const cleanBadges = (value, where) => {
-    if (value === undefined || value === null) return null;
-    if (typeof value === "string") value = value.split(",");
-    if (!Array.isArray(value)) {
-      note(`${where}: badges should be a list like ["Luxury-Grade Silver", "Organic Shape"]. Using the default badges.`);
-      return null;
-    }
-    const list = value
-      .map((b) => {
-        const label = cleanText(typeof b === "string" ? b : b && b.label, 40, `${where}: a badge`);
-        if (!label) return null;
-        const at = b && Array.isArray(b.at) && b.at.length >= 2 && b.at.slice(0, 2).every((n) => Number.isFinite(Number(n)))
-          ? Object.freeze([unit(b.at[0]), unit(b.at[1])])
-          : null;
-        if (b && typeof b === "object" && b.at !== undefined && !at) note(`${where}: badge "${label}" has an "at" that is not [across, down], like [0.5, 0.2].`);
-        return Object.freeze({ label, at });
-      })
-      .filter(Boolean);
-    if (list.length > 8) note(`${where}: only the first 8 badges are shown.`);
-    return list.slice(0, 8);
-  };
-  const slugify = (value) =>
-    cleanText(value, 80)
-      .replace(/[đĐ]/g, "d")
-      .normalize("NFKD")
-      .replace(/[̀-ͯ]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "piece";
-
-  // Photos must be image files inside assets/products/. Common slips are
-  // forgiven (a bare file name, "./", "site/"); anything else (other sites,
-  // data:, "..", odd characters) is refused before it reaches the page.
-  const PHOTO = /^assets\/products\/(?:[^/]+\/)*[^/]+\.(?:webp|avif|jpe?g|png)$/i;
-  const safeSrc = (value) => {
-    if (typeof value !== "string") return null;
-    let s = value.trim().replace(/^\.\//, "").replace(/^\/+/, "").replace(/^site\//, "");
-    if (s && !s.includes("/")) s = `assets/products/${s}`;
-    if (!s || s.length > 300 || /[\u0000-\u001f\u007f\\?#%"'<>`]/.test(s)) return null;
-    if (s.split("/").some((part) => part === ".." || part === ".")) return null;
-    return PHOTO.test(s) ? s : null;
-  };
-
-  const s = source.settings || {};
-  checkKeys(s, ["autoRotateSeconds", "idleReturnSeconds", "zoom"], "settings");
-  const settings = Object.freeze({
-    rotateMs: clampNum(s.autoRotateSeconds, 2, 60, 4, "autoRotateSeconds") * 1000,
-    idleMs: clampNum(s.idleReturnSeconds, 0, 3600, 90, "idleReturnSeconds") * 1000,
-    zoom: clampNum(s.zoom, 1.2, 4, 2, "zoom"),
-  });
-
-  const PIECE_KEYS = ["name", "images", "image", "alt", "ref", "badges", "hidden", "id"];
-  const pieces = (() => {
-    const out = [];
-    const seen = new Set();
-    const fallback = cleanBadges(source.defaultBadges, "defaultBadges") || cleanBadges(DEFAULT_BADGES, "");
-    if (!Array.isArray(source.pieces)) {
-      if (window.HUG_ATELIER) note("products.js: pieces should be a list: pieces: [ { ... }, { ... }, ]");
-      return out;
-    }
-    source.pieces.forEach((p, n) => {
-      const where = `Piece ${n + 1}${p && typeof p.name === "string" && p.name.trim() ? ` ("${p.name.trim()}")` : ""}`;
-      if (!p || typeof p !== "object" || Array.isArray(p)) return note(`${where} is not a { ... } block. Skipped.`);
-      if (p.hidden === true) return;
-      checkKeys(p, PIECE_KEYS, where);
-      if (p.hidden !== undefined && typeof p.hidden !== "boolean") note(`${where}: hidden should be true or false, without quotes.`);
-      if (p.hidden === "true") return;
-      const name = cleanText(p.name, 90, `${where}: the name`);
-      if (!name) return note(`${where} has no name. Skipped.`);
-      const list = Array.isArray(p.images) ? p.images : typeof p.images === "string" ? [p.images] : p.image ? [p.image] : [];
-      list.forEach((src) => {
-        if (!safeSrc(src))
-          note(`${where}: the photo ${JSON.stringify(src)} was skipped. Photos are .webp, .jpg, .png or .avif files in assets/products/, written like "assets/products/name.webp".`);
-      });
-      const images = list.map(safeSrc).filter(Boolean);
-      if (images.length > 12) note(`${where}: only the first 12 photos are shown.`);
-      if (!images.length) return note(`${where} has no usable photo. Skipped.`);
-      let id = slugify(p.id || name);
-      for (let k = 2; seen.has(id); k++) id = `${slugify(p.id || name)}-${k}`;
-      seen.add(id);
-      const ref = typeof p.ref === "number" ? `N° ${String(p.ref).padStart(3, "0")}` : cleanText(p.ref, 40, `${where}: ref`);
-      out.push(Object.freeze({
-        id,
-        name,
-        ref,
-        alt: cleanText(p.alt, 240, `${where}: alt`) || name,
-        images: Object.freeze(images.slice(0, 12)),
-        badges: Object.freeze(cleanBadges(p.badges, where) ?? fallback),
-      }));
-    });
-    return Object.freeze(out);
-  })();
 
   // --------------------------------------------------------------- dom ---
 
@@ -273,7 +131,7 @@
     empty.className = "empty";
     empty.textContent = window.HUG_ATELIER
       ? "No pieces to show. Add one in products.js."
-      : "products.js needs a fix. Open the page from your computer to see where.";
+      : "products.js needs a fix.";
     el.stage.append(empty);
     el.showcase.querySelector(".meta").hidden = true;
   }
@@ -1113,9 +971,9 @@
     const k = Math.max(w / (img.naturalWidth || 4), h / (img.naturalHeight || 5));
     const x = (u - (w - img.naturalWidth * k) / 2) / (img.naturalWidth * k);
     const y = (v - (h - img.naturalHeight * k) / 2) / (img.naturalHeight * k);
-    const at = `at: [${x.toFixed(2)}, ${y.toFixed(2)}]`;
-    note(`Spot on "${pieces[state.focus].name}": ${at}`);
-    if (navigator.clipboard) navigator.clipboard.writeText(at).catch(() => {});
+    const line = `{ label: "", at: [${x.toFixed(2)}, ${y.toFixed(2)}] },`;
+    note(`Spot on "${pieces[state.focus].name}", copied: ${line}`);
+    if (navigator.clipboard) navigator.clipboard.writeText(line).catch(() => {});
     showNotes();
   });
 

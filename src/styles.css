@@ -767,10 +767,10 @@
   .check {
     position: fixed;
     right: max(1rem, env(safe-area-inset-right));
-    bottom: max(1rem, env(safe-area-inset-bottom));
+    top: max(1rem, env(safe-area-inset-top));
     z-index: 50;
-    width: min(26rem, calc(100vw - 2rem));
-    max-height: 50svh;
+    width: min(24rem, calc(100vw - 2rem));
+    max-height: 40svh;
     overflow-y: auto;
     padding: 1rem 1.1rem 1.1rem;
     border-radius: 1rem;
