@@ -340,40 +340,81 @@
     }
   }
 
+  /* Pulling the photo down lifts the whole frame (--py, --pscale), so the
+     closing morph starts from exactly where the photo is. */
   .media {
     position: relative;
+    z-index: 1;
     overflow: hidden;
     background: var(--color-linen);
     touch-action: none;
+    transform: translate3d(0, var(--py, 0px), 0) scale(var(--pscale, 1));
+    transition: transform 600ms var(--ease-silk);
   }
   .media-img {
     position: absolute;
     inset: 0;
     transform-origin: var(--ox, 50%) var(--oy, 50%);
-    transform: translate3d(var(--sx, 0px), var(--sy, 0px), 0) scale(calc(var(--z, 1) * var(--ps, 1)));
+    transform: translate3d(calc(var(--sx, 0px) + var(--dx, 0px)), var(--sy, 0px), 0) scale(calc(var(--z, 1) * var(--ps, 1)));
     transition:
       transform 800ms var(--ease-silk),
+      object-position 900ms var(--ease-silk),
       opacity 500ms var(--ease-silk);
   }
-  .media.is-dragging .media-img {
+
+  /* Swiping: the neighbouring photos sit beside this one and follow the finger. */
+  .media-peek {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    visibility: hidden;
+    transform: translate3d(calc(var(--side) * (100% + 2px) + var(--dx, 0px)), 0, 0);
+  }
+  .media-peek[data-side="-1"] {
+    --side: -1;
+  }
+  .media-peek[data-side="1"] {
+    --side: 1;
+  }
+  .media.is-swiping .media-peek {
+    visibility: visible;
+  }
+  .media.is-swiping .media-img,
+  .media.is-swiping .media-peek {
+    transition: transform 460ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .media.is-dragging,
+  .media.is-dragging .media-img,
+  .media.is-dragging.is-zoomed .media-img,
+  .media.is-dragging .media-peek {
     transition: none;
   }
 
-  /* A single sweep of light across the photo when a piece opens. */
+  /* The panel and Back fade as the photo is swiped or pulled away. */
+  .panel,
+  .focus > .back {
+    opacity: calc(1 - var(--fade, 0));
+    transition: opacity 400ms var(--ease-silk);
+  }
+
+  /* One sweep of light when a piece opens. Colour dodge brightens what is
+     already bright (pearls, silver) and leaves dark backdrops alone. */
   .media::after {
     content: "";
     position: absolute;
     inset: 0;
     z-index: 1;
     pointer-events: none;
-    background: linear-gradient(105deg, transparent 40%, rgb(255 255 255 / 0.3) 50%, transparent 60%);
+    background: linear-gradient(105deg, transparent 42%, rgb(255 255 255 / 0.24) 50%, transparent 58%);
     background-size: 300% 100%;
     background-position: 130% 0;
-    mix-blend-mode: screen;
+    mix-blend-mode: color-dodge;
     opacity: 0;
   }
-  .focus.is-in .media::after {
-    animation: glint 2400ms var(--ease-glide) 700ms both;
+  .media.glint::after {
+    animation: glint 2600ms var(--ease-glide) 650ms both;
   }
 
   /* Touch loupe: a magnifying glass that floats above the finger. */
@@ -425,6 +466,7 @@
     --z: var(--zoom, 2);
     transition:
       transform 900ms var(--ease-silk),
+      object-position 900ms var(--ease-silk),
       opacity 500ms var(--ease-silk);
   }
   @media (hover: hover) and (pointer: fine) {
@@ -456,6 +498,9 @@
   .media.is-zoomed .loupe {
     opacity: 1;
     scale: 1;
+  }
+  .media.is-detail .loupe {
+    opacity: 0;
   }
 
   .dots {
@@ -566,7 +611,7 @@
   .badge {
     display: inline-flex;
     align-items: center;
-    min-height: 2.25rem;
+    min-height: 2.75rem;
     padding: 0 1rem;
     border-radius: 999px;
     font-size: 0.625rem;
@@ -681,6 +726,7 @@
   /* ------------------------------------------------------------- index */
 
   .counter {
+    min-height: 2.75rem;
     padding: 0.75rem 0.25rem 0.75rem 0.6rem;
     margin: -0.75rem -0.25rem -0.75rem -0.6rem;
     letter-spacing: inherit;
@@ -707,12 +753,17 @@
   .index .back {
     position: fixed;
   }
+  /* Centred rows, so a short last row sits in the middle. */
   .index-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(44%, 14rem), 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: clamp(1.5rem, 3vw, 3rem) clamp(0.75rem, 2vw, 2rem);
     max-width: 82rem;
     margin: 0 auto;
+  }
+  .index-grid > li {
+    flex: 0 1 clamp(9.5rem, 21vw, 16rem);
   }
   .index-item {
     display: grid;
@@ -759,7 +810,10 @@
     animation: rise 900ms var(--ease-silk) both;
     animation-delay: calc(60ms + var(--i, 0) * 55ms);
   }
-  .index.is-in {
+  .index.is-in .index-item.is-hero {
+    animation: none;
+  }
+  .index.is-in:not(.is-morphing) {
     animation: fade 500ms var(--ease-silk) both;
   }
 
@@ -952,8 +1006,11 @@ html[data-vt="prev"]::view-transition-new(root) {
 /* No hover on tablets: the light drifts on its own and the active photo
    slowly moves closer while it is on show. */
 @media (hover: none) {
-  html {
-    animation: sheen-drift 16s linear infinite;
+  /* Stepped about 7 times a second, and only on the glass itself, so it costs
+     almost nothing while the screen is kept awake all day. */
+  .glass,
+  .pip {
+    animation: sheen-drift 16s steps(112) infinite;
   }
   .slide-frame img {
     transition: transform 1200ms var(--ease-silk);
@@ -968,13 +1025,14 @@ html[data-vt="prev"]::view-transition-new(root) {
 
 @media (prefers-reduced-motion: reduce) {
   .aura,
-  html {
+  .glass,
+  .pip {
     animation: none;
   }
   .slide.is-active .slide-frame img {
     transform: none;
   }
-  .focus.is-in .media::after {
+  .media.glint::after {
     animation: none;
   }
   .slide {

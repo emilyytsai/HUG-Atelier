@@ -506,7 +506,7 @@ def petal_studs():
             pearl((ox + 0.5 * math.cos(a), oy + 0.5 * math.sin(a), 0.42), random.uniform(0.32, 0.38), pm,
                   baroque=0.28, stretch=(1, 1, 0.9))
         pearl((ox, oy, 0.72), 0.33, pm, baroque=0.1)
-    camera((2.6, -10.5, 10.5), (0, -0.1, 0.3), lens=100, fstop=4.0)
+    camera((0.9, -11.8, 11.2), (0.05, -0.15, 0.3), lens=100, fstop=4.0)
 
 
 def undertow_lariat():

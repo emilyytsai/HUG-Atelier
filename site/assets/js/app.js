@@ -75,6 +75,7 @@
     image: 0,
     holds: new Set(),
     busy: false,
+    fromIndex: false,
   };
 
   // ------------------------------------------------------------- images ---
@@ -338,9 +339,12 @@
     if (!badge || !badge.at) return;
     if (zoom.badge === k) return endZoom();
     if (state.image !== 0) showImage(0);
-    const [x, y] = toFrame(badge.at);
+    // Slide the crop window toward the spot first: in a frame narrower or
+    // taller than the photo, the spot may sit in the part that is cropped off.
+    el.mediaImg.style.objectPosition = `${(badge.at[0] * 100).toFixed(1)}% ${(badge.at[1] * 100).toFixed(1)}%`;
+    const { x, y } = toFrame(badge.at, badge.at);
     const wasZoomed = zoom.on;
-    endZoom();
+    endZoom(false, true);
     zoom.badge = k;
     zoom.tx = x;
     zoom.ty = y;
@@ -350,7 +354,7 @@
       el.mediaImg.style.setProperty("--ox", `${(x * 100).toFixed(2)}%`);
       el.mediaImg.style.setProperty("--oy", `${(y * 100).toFixed(2)}%`);
     }
-    // Bring the spot toward the centre, as far as the photo's edges allow.
+    // Then bring the spot to the centre, as far as the frame's edges allow.
     const z = settings.zoom;
     const shift = (p) => Math.min((z - 1) * p, Math.max(-(z - 1) * (1 - p), 0.5 - p));
     el.mediaImg.style.setProperty("--sx", `${(shift(x) * el.media.clientWidth).toFixed(1)}px`);
@@ -362,18 +366,19 @@
     if (!zoom.raf) zoom.raf = requestAnimationFrame(tick);
   }
 
-  // Photo coordinates (0-1 of the whole photo) to frame coordinates, since the
-  // frame crops the photo to fill it.
-  function toFrame([x, y]) {
+  // Photo coordinates (0-1 of the whole photo) to frame coordinates. The frame
+  // crops the photo to fill it; `crop` is the object-position (0-1, default
+  // centred) that decides which part is cropped.
+  function toFrame([x, y], crop = [0.5, 0.5]) {
     const img = el.mediaImg;
     const w = el.media.clientWidth;
     const h = el.media.clientHeight;
     const nw = img.naturalWidth || 4;
     const nh = img.naturalHeight || 5;
     const k = Math.max(w / nw, h / nh);
-    const fx = ((w - nw * k) / 2 + x * nw * k) / w;
-    const fy = ((h - nh * k) / 2 + y * nh * k) / h;
-    return [Math.min(1, Math.max(0, fx)), Math.min(1, Math.max(0, fy))];
+    const fx = ((w - nw * k) * crop[0] + x * nw * k) / w;
+    const fy = ((h - nh * k) * crop[1] + y * nh * k) / h;
+    return { x: Math.min(1, Math.max(0, fx)), y: Math.min(1, Math.max(0, fy)) };
   }
 
   function renderDots(piece) {
@@ -448,6 +453,7 @@
     if (push) history.pushState({ hug: piece.id, pushed: true }, "", `#${piece.id}`);
     endZoom(true);
     const frame = from || slides[i].frame;
+    state.fromIndex = Boolean(from);
     const update = () => {
       if (state.active !== i) {
         state.active = i;
@@ -456,6 +462,7 @@
       }
       renderPiece(i);
       showView("focus");
+      el.media.classList.add("glint");
       frame.style.viewTransitionName = "";
       el.media.style.viewTransitionName = "hero";
       el.back.focus({ preventScroll: true });
@@ -483,20 +490,26 @@
     if (state.view !== "focus" || state.busy) return;
     const i = state.focus;
     endZoom(true);
-    const frame = slides[i].frame;
+    const toIndex = state.fromIndex && Boolean(indexFrames[i]);
+    state.fromIndex = false;
+    const frame = toIndex ? indexFrames[i] : slides[i].frame;
     const update = () => {
       state.active = i;
       layout(true);
       caption(true);
       resetDrag();
-      showView("showcase");
+      showView(toIndex ? "index" : "showcase");
       el.media.style.viewTransitionName = "";
       frame.style.viewTransitionName = "hero";
-      if (el.focus.contains(document.activeElement)) document.activeElement.blur();
+      if (toIndex) {
+        frame.scrollIntoView({ block: "nearest" });
+        el.indexBack.focus({ preventScroll: true });
+      } else if (el.focus.contains(document.activeElement)) document.activeElement.blur();
     };
     const done = () => {
       frame.style.viewTransitionName = "";
       state.busy = false;
+      if (toIndex) return;
       // Pauses set before the piece opened may be stale now (pointer moved away).
       state.holds.delete("keyboard");
       state.holds.delete("drag");
@@ -599,21 +612,56 @@
       }),
     );
   }
+  // The carousel photo morphs into its place in the grid, and back.
   function openIndex() {
     if (state.busy || state.view !== "showcase" || !count) return;
     buildIndex();
-    showView("index");
-    el.index.scrollTop = 0;
-    el.index.classList.remove("is-in");
-    void el.index.offsetWidth;
-    el.index.classList.add("is-in");
-    el.indexBack.focus({ preventScroll: true });
+    const from = slides[state.active].frame;
+    const to = indexFrames[state.active];
+    indexFrames.forEach((f) => f.parentElement.classList.toggle("is-hero", f === to));
+    const update = () => {
+      showView("index");
+      el.index.scrollTop = 0;
+      to.scrollIntoView({ block: "nearest" });
+      el.index.classList.remove("is-in");
+      void el.index.offsetWidth;
+      el.index.classList.add("is-in");
+      from.style.viewTransitionName = "";
+      to.style.viewTransitionName = "hero";
+      el.indexBack.focus({ preventScroll: true });
+    };
+    if (!canMorph()) return update();
+    state.busy = true;
+    el.index.classList.add("is-morphing");
+    from.style.viewTransitionName = "hero";
+    transition("index", update).finally(() => {
+      to.style.viewTransitionName = "";
+      el.index.classList.remove("is-morphing");
+      state.busy = false;
+    });
   }
   function closeIndex() {
-    if (state.view !== "index") return;
-    showView("showcase");
-    if (!el.stage.matches(":hover")) state.holds.delete("hover");
-    restartTimer();
+    if (state.view !== "index" || state.busy) return;
+    const from = indexFrames[state.active];
+    const to = slides[state.active].frame;
+    const update = () => {
+      showView("showcase");
+      from.style.viewTransitionName = "";
+      to.style.viewTransitionName = "hero";
+    };
+    const done = () => {
+      to.style.viewTransitionName = "";
+      state.busy = false;
+      if (!el.stage.matches(":hover")) state.holds.delete("hover");
+      restartTimer();
+    };
+    if (!canMorph() || !from) {
+      update();
+      return done();
+    }
+    state.busy = true;
+    from.style.viewTransitionName = "hero";
+    transition("index", update).finally(done);
   }
   el.counter.addEventListener("click", openIndex);
   el.indexBack.addEventListener("click", closeIndex);
@@ -648,8 +696,9 @@
     el.media.classList.add("is-zoomed");
     if (!zoom.raf) zoom.raf = requestAnimationFrame(tick);
   }
-  function endZoom(now = false) {
+  function endZoom(now = false, keepCrop = false) {
     clearTimeout(zoom.delay);
+    if (!keepCrop) el.mediaImg.style.removeProperty("object-position");
     zoom.delay = 0;
     zoom.anchor = null;
     zoom.on = false;
@@ -676,6 +725,7 @@
       el.badges.querySelectorAll("button.badge").forEach((b) => b.setAttribute("aria-pressed", "false"));
       el.mediaImg.style.removeProperty("--sx");
       el.mediaImg.style.removeProperty("--sy");
+      el.mediaImg.style.removeProperty("object-position");
     }
     aim(e);
     if (zoom.on || zoom.delay || state.busy || !fineHover.matches) return;
@@ -693,20 +743,36 @@
     if (e.pointerType === "mouse") endZoom();
   });
   el.media.addEventListener("contextmenu", (e) => e.preventDefault());
+  el.media.addEventListener("animationend", (e) => {
+    if (e.animationName === "glint") el.media.classList.remove("glint");
+  });
 
-  // Touch: hold for the loupe, swipe sideways for the next piece, pull down
-  // to go back. One finger, decided by its first movement.
-  const touch = { id: null, x0: 0, y0: 0, t0: 0, dx: 0, dy: 0, mode: "", timer: 0, rect: null };
+  // Touch: hold for the loupe, swipe sideways through the pieces, pull down
+  // to go back, pinch to look closer. One finger is decided by its first
+  // movement; a second finger always means pinch.
+  const touch = { id: null, x0: 0, y0: 0, dx: 0, dy: 0, mode: "", timer: 0, rect: null, trail: [] };
+  const fingers = new Map();
+  const pinch = { d0: 1, mx: 0, my: 0 };
+  const peeks = [$("peek-prev"), $("peek-next")];
+  const wrap = (i) => ((i % count) + count) % count;
 
+  // Instantly put the photo, its frame and the panel back to rest.
   function resetDrag() {
     el.media.classList.add("is-dragging");
-    ["--sx", "--sy", "--ps"].forEach((v) => el.mediaImg.style.removeProperty(v));
-    void el.mediaImg.offsetWidth;
-    el.media.classList.remove("is-dragging");
+    clearDrag();
+    void el.media.offsetWidth;
+    el.media.classList.remove("is-dragging", "is-swiping");
   }
+  // Same, but animated back (a gesture that did not go far enough).
   function settle() {
     el.media.classList.remove("is-dragging");
+    clearDrag();
+    setTimeout(() => el.media.classList.remove("is-swiping"), 480);
+  }
+  function clearDrag() {
     ["--sx", "--sy", "--ps"].forEach((v) => el.mediaImg.style.removeProperty(v));
+    ["--dx", "--py", "--pscale"].forEach((v) => el.media.style.removeProperty(v));
+    el.focus.style.removeProperty("--fade");
   }
 
   function showLens(x, y) {
@@ -737,20 +803,84 @@
     el.lens.classList.remove("is-on");
   }
 
+  // Speed over the last ~90 ms, so a flick counts even after a slow start.
+  function velocity() {
+    const t = touch.trail;
+    if (t.length < 2) return { vx: 0, vy: 0 };
+    const a = t[0];
+    const b = t[t.length - 1];
+    const dt = Math.max(1, b.t - a.t);
+    return { vx: (b.x - a.x) / dt, vy: (b.y - a.y) / dt };
+  }
+
+  function startSwipe() {
+    peeks[0].src = pieces[wrap(state.focus - 1)].images[0];
+    peeks[1].src = pieces[wrap(state.focus + 1)].images[0];
+    el.media.classList.add("is-swiping", "is-dragging");
+  }
+  // Finish the slide the finger started, then swap in the new piece.
+  function commitSwipe(dir) {
+    const i = wrap(state.focus + dir);
+    const width = touch.rect.width;
+    state.busy = true;
+    endZoom(true);
+    el.media.classList.remove("is-dragging");
+    el.media.style.setProperty("--dx", `${-dir * (width + 2)}px`);
+    el.focus.style.setProperty("--fade", "0.6");
+    history.replaceState({ hug: pieces[i].id, pushed: history.state?.pushed }, "", `#${pieces[i].id}`);
+    setTimeout(() => {
+      setImage(el.mediaImg, pieces[i].images[0], pieces[i].alt);
+      const swap = () => {
+        renderPiece(i);
+        state.busy = false;
+      };
+      el.mediaImg.decode().then(swap, swap);
+    }, 470);
+  }
+
+  function startPinch() {
+    clearTimeout(touch.timer);
+    hideLens();
+    endZoom(true);
+    const [a, b] = [...fingers.values()];
+    const r = el.media.getBoundingClientRect();
+    touch.rect = r;
+    pinch.d0 = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+    pinch.mx = (a.x + b.x) / 2;
+    pinch.my = (a.y + b.y) / 2;
+    if (touch.mode === "swipe" || touch.mode === "pull") clearDrag();
+    el.media.classList.remove("is-swiping");
+    el.media.classList.add("is-dragging");
+    el.mediaImg.style.setProperty("--ox", `${(((pinch.mx - r.left) / r.width) * 100).toFixed(2)}%`);
+    el.mediaImg.style.setProperty("--oy", `${(((pinch.my - r.top) / r.height) * 100).toFixed(2)}%`);
+    touch.mode = "pinch";
+  }
+  function movePinch() {
+    const [a, b] = [...fingers.values()];
+    const scale = Math.min(4, Math.max(1, Math.hypot(a.x - b.x, a.y - b.y) / pinch.d0));
+    el.mediaImg.style.setProperty("--ps", scale.toFixed(4));
+    el.mediaImg.style.setProperty("--sx", `${((a.x + b.x) / 2 - pinch.mx).toFixed(1)}px`);
+    el.mediaImg.style.setProperty("--sy", `${((a.y + b.y) / 2 - pinch.my).toFixed(1)}px`);
+  }
+
   el.media.addEventListener("pointerdown", (e) => {
-    if (e.pointerType === "mouse" || touch.id !== null || state.busy) return;
+    if (e.pointerType === "mouse" || e.target.closest(".dots")) return;
+    fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    el.media.setPointerCapture(e.pointerId);
+    if (state.busy) return;
+    if (fingers.size === 2 && touch.mode !== "done") return startPinch();
+    if (fingers.size > 1 || touch.id !== null) return;
     if (zoom.badge >= 0) endZoom();
     Object.assign(touch, {
       id: e.pointerId,
       x0: e.clientX,
       y0: e.clientY,
-      t0: performance.now(),
       dx: 0,
       dy: 0,
       mode: "wait",
       rect: el.media.getBoundingClientRect(),
+      trail: [{ t: performance.now(), x: e.clientX, y: e.clientY }],
     });
-    el.media.setPointerCapture(e.pointerId);
     const at = { x: e.clientX, y: e.clientY };
     touch.timer = setTimeout(() => {
       if (touch.mode !== "wait") return;
@@ -758,42 +888,72 @@
       showLens(at.x, at.y);
     }, 200);
   });
+
   el.media.addEventListener("pointermove", (e) => {
+    if (!fingers.has(e.pointerId)) return;
+    fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touch.mode === "pinch") return movePinch();
     if (e.pointerId !== touch.id) return;
+    const now = performance.now();
+    touch.trail.push({ t: now, x: e.clientX, y: e.clientY });
+    while (touch.trail.length > 2 && now - touch.trail[0].t > 90) touch.trail.shift();
     touch.dx = e.clientX - touch.x0;
     touch.dy = e.clientY - touch.y0;
     if (touch.mode === "wait") {
       if (Math.hypot(touch.dx, touch.dy) < 10) return;
       clearTimeout(touch.timer);
-      if (Math.abs(touch.dx) > Math.abs(touch.dy) && count > 1) touch.mode = "swipe";
-      else if (touch.dy > 0) touch.mode = "pull";
-      else {
+      if (Math.abs(touch.dx) > Math.abs(touch.dy) && count > 1) {
+        touch.mode = "swipe";
+        startSwipe();
+      } else if (touch.dy > 0) {
+        touch.mode = "pull";
+        el.media.classList.add("is-dragging");
+      } else {
         touch.mode = "lens";
         showLens(e.clientX, e.clientY);
       }
-      if (touch.mode !== "lens") el.media.classList.add("is-dragging");
     }
+    const width = touch.rect.width;
     if (touch.mode === "lens") moveLens(e.clientX, e.clientY);
-    else if (touch.mode === "swipe") el.mediaImg.style.setProperty("--sx", `${(touch.dx * 0.9).toFixed(1)}px`);
-    else if (touch.mode === "pull") {
+    else if (touch.mode === "swipe") {
+      el.media.style.setProperty("--dx", `${touch.dx.toFixed(1)}px`);
+      el.focus.style.setProperty("--fade", Math.min(0.6, (Math.abs(touch.dx) / width) * 0.9).toFixed(3));
+    } else if (touch.mode === "pull") {
       const d = Math.max(0, touch.dy);
-      el.mediaImg.style.setProperty("--sy", `${(d * 0.55).toFixed(1)}px`);
-      el.mediaImg.style.setProperty("--ps", (1 - Math.min(d, 420) / 1400).toFixed(4));
+      const p = Math.min(1, d / 360);
+      el.media.style.setProperty("--py", `${(d * 0.6).toFixed(1)}px`);
+      el.media.style.setProperty("--pscale", (1 - p * 0.22).toFixed(4));
+      el.focus.style.setProperty("--fade", (p * 0.85).toFixed(3));
     }
   });
+
   const touchEnd = (e) => {
+    if (!fingers.has(e.pointerId)) return;
+    fingers.delete(e.pointerId);
+    const cancelled = e.type === "pointercancel";
+    if (touch.mode === "pinch" || touch.mode === "done") {
+      // Spring back once every finger has lifted.
+      touch.mode = fingers.size ? "done" : "";
+      if (!fingers.size) {
+        touch.id = null;
+        settle();
+      }
+      return;
+    }
     if (e.pointerId !== touch.id) return;
     clearTimeout(touch.timer);
     const { mode, dx, dy, rect } = touch;
-    const speed = Math.hypot(dx, dy) / Math.max(1, performance.now() - touch.t0);
+    const { vx, vy } = velocity();
     touch.id = null;
     touch.mode = "";
     if (mode === "lens") hideLens();
     else if (mode === "swipe") {
-      if (e.type !== "pointercancel" && (Math.abs(dx) > rect.width * 0.2 || speed > 0.5)) step(dx < 0 ? 1 : -1);
+      const far = Math.abs(dx) > rect.width * 0.22;
+      const flick = Math.abs(vx) > 0.45 && Math.sign(vx) === Math.sign(dx);
+      if (!cancelled && (far || flick)) commitSwipe(dx < 0 ? 1 : -1);
       else settle();
     } else if (mode === "pull") {
-      if (e.type !== "pointercancel" && (dy > 110 || (dy > 30 && speed > 0.5))) back();
+      if (!cancelled && (dy > 120 || (dy > 30 && vy > 0.5))) back();
       else settle();
     }
   };
