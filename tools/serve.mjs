@@ -9,6 +9,7 @@ import { createReadStream, realpathSync, statSync } from "node:fs";
 import { extname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isIP } from "node:net";
+import { networkInterfaces } from "node:os";
 import { readHeaders } from "./sync-headers.mjs";
 
 const ROOT = realpathSync(fileURLToPath(new URL("../site", import.meta.url)));
@@ -102,9 +103,11 @@ createServer((req, res) => {
   .listen(PORT, HOST, () => {
     console.log(`HUG Atelier on http://localhost:${PORT}`);
     if (LAN) {
-      console.log(
-        "LAN mode: other devices on this network can open it at http://<this-computer's-ip>:" + PORT +
-          "\nUse your own hotspot only. On shared wifi, anyone nearby can read or alter what the tablet sees.",
-      );
+      const ips = Object.values(networkInterfaces())
+        .flat()
+        .filter((n) => n && n.family === "IPv4" && !n.internal)
+        .map((n) => `http://${n.address}:${PORT}`);
+      console.log(`LAN mode: on the tablet, open ${ips.join(" or ") || "http://<this-computer's-ip>:" + PORT}`);
+      console.log("Use your own hotspot only. On shared wifi, anyone nearby can read or alter what the tablet sees.");
     }
   });

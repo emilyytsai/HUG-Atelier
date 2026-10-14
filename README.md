@@ -161,9 +161,12 @@ There is no server code, login, form, cookie, analytics or third-party request, 
 Keep in mind:
 
 - **The site is public to anyone with the link.** To keep it private (unreleased pieces, prices in photos), turn on access control at the host. [Cloudflare Access](https://www.cloudflare.com/zero-trust/products/access/) has a free tier; Netlify and Vercel password protection need a paid plan. An unusual web address is not a secret: new domains and subdomains appear in public certificate logs.
-- **Protect the hosting and GitHub accounts with two-factor sign-in.** Whoever controls them controls what the tablet shows.
+- **Protect the hosting and GitHub accounts with two-factor sign-in.** Whoever controls them controls what the tablet shows. Keep the GitHub repository private: deleted photos stay in its history.
+- **If you turn on host sign-in (Cloudflare Access and similar),** set the session to last longer than the event, so the tablet is not signed out mid-show. The offline copy covers short outages either way.
 - **Use HTTPS hosting, not GitHub Pages.** GitHub Pages cannot send the security headers above.
 - **Use LAN mode only on your own network.** `npm run serve -- --lan` lets a tablet on the same network open the lookbook, over plain http. On venue or guest wifi, someone nearby could alter what the tablet shows. Use your own hotspot, or better, the hosted link.
+
+`npm audit` reports a "high" issue in a file-matching library used only by the Tailwind build tool on your computer. It never reaches the published site and takes no outside input, so it needs no action. Do not run `npm audit fix --force`; it downgrades the build tool.
 
 ## Files
 

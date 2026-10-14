@@ -11,16 +11,25 @@ import vm from "node:vm";
 const SITE = fileURLToPath(new URL("../site/", import.meta.url));
 const file = join(SITE, "products.js");
 let problems = 0;
+let advice = 0;
 const warn = (text) => {
   problems++;
   console.log(`  ✗ ${text}`);
 };
+// Worth fixing, but the photo still shows: does not fail a deploy.
+const hint = (text) => {
+  advice++;
+  console.log(`  ! ${text}`);
+};
 
+// products.js runs in an empty context with no access to this computer, and
+// only plain data (JSON) comes back out.
 let catalog;
 try {
-  const sandbox = { window: {} };
-  new vm.Script(readFileSync(file, "utf8"), { filename: "products.js" }).runInNewContext(sandbox, { timeout: 1000 });
-  catalog = sandbox.window.HUG_ATELIER;
+  const ctx = vm.createContext(Object.create(null), { codeGeneration: { strings: false, wasm: false }, microtaskMode: "afterEvaluate" });
+  vm.runInContext("var window = {};", ctx);
+  new vm.Script(readFileSync(file, "utf8"), { filename: "products.js" }).runInContext(ctx, { timeout: 1000 });
+  catalog = JSON.parse(vm.runInContext("JSON.stringify(window.HUG_ATELIER) || 'null'", ctx, { timeout: 1000 }));
 } catch (err) {
   const where = (err.stack || "").match(/products\.js:(\d+)/);
   console.log(`✗ products.js has a mistake${where ? ` near line ${where[1]}` : ""}: ${err.message}`);
@@ -82,7 +91,7 @@ for (const [n, p] of catalog.pieces.entries()) {
   for (const raw of list) {
     let rel = String(raw).trim().replace(/^\.\//, "").replace(/^\/+/, "").replace(/^site\//, "");
     if (!rel.includes("/")) rel = `assets/products/${rel}`;
-    if (!/^assets\/products\/.+\.(webp|avif|jpe?g|png)$/i.test(rel) || rel.split("/").includes("..")) {
+    if (!/^assets\/products\/.+\.(webp|avif|jpe?g|png)$/i.test(rel) || /[%\\?#]/.test(rel) || rel.split("/").includes("..")) {
       warn(`${raw}: photos must be .webp, .jpg, .png or .avif files in assets/products/`);
       continue;
     }
@@ -98,14 +107,20 @@ for (const [n, p] of catalog.pieces.entries()) {
     }
     const path = join(SITE, rel);
     const kb = Math.round(statSync(path).size / 1024);
-    if (kb > 600) warn(`${rel}: ${kb} KB is heavy for a tablet; aim for under 400 KB`);
+    if (kb > 600) hint(`${rel}: ${kb} KB is heavy for a tablet; aim for under 400 KB`);
     const wh = size(path);
     if (wh) {
       const [w, h] = wh;
-      if (Math.abs(w / h - 0.8) > 0.08) warn(`${rel}: ${w} × ${h} is not close to portrait 4:5, so the edges will be cropped`);
-      if (w < 1000) warn(`${rel}: ${w} px wide looks soft on a tablet; aim for 1600 × 2000`);
+      if (Math.abs(w / h - 0.8) > 0.08) hint(`${rel}: ${w} × ${h} is not close to portrait 4:5, so the edges will be cropped`);
+      if (w < 1000) hint(`${rel}: ${w} px wide looks soft on a tablet; aim for 1600 × 2000`);
     }
   }
 }
-console.log(problems ? `\n${problems} thing${problems > 1 ? "s" : ""} to fix.` : "\nAll good.");
+console.log(
+  problems
+    ? `\n${problems} thing${problems > 1 ? "s" : ""} to fix.`
+    : advice
+      ? `\nEverything will show. ${advice} suggestion${advice > 1 ? "s" : ""} above.`
+      : "\nAll good.",
+);
 process.exit(problems ? 1 : 0);

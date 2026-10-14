@@ -111,7 +111,7 @@
     if (typeof value !== "string") return null;
     let s = value.trim().replace(/^\.\//, "").replace(/^\/+/, "").replace(/^site\//, "");
     if (s && !s.includes("/")) s = `assets/products/${s}`;
-    if (!s || s.length > 300 || /[\u0000-\u001f\u007f\\?#"'<>`]/.test(s)) return null;
+    if (!s || s.length > 300 || /[\u0000-\u001f\u007f\\?#%"'<>`]/.test(s)) return null;
     if (s.split("/").some((part) => part === ".." || part === ".")) return null;
     return PHOTO.test(s) ? s : null;
   };
@@ -136,9 +136,10 @@
     source.pieces.forEach((p, n) => {
       const where = `Piece ${n + 1}${p && typeof p.name === "string" && p.name.trim() ? ` ("${p.name.trim()}")` : ""}`;
       if (!p || typeof p !== "object" || Array.isArray(p)) return note(`${where} is not a { ... } block. Skipped.`);
+      if (p.hidden === true) return;
       checkKeys(p, PIECE_KEYS, where);
       if (p.hidden !== undefined && typeof p.hidden !== "boolean") note(`${where}: hidden should be true or false, without quotes.`);
-      if (p.hidden === true || p.hidden === "true") return;
+      if (p.hidden === "true") return;
       const name = cleanText(p.name, 90, `${where}: the name`);
       if (!name) return note(`${where} has no name. Skipped.`);
       const list = Array.isArray(p.images) ? p.images : typeof p.images === "string" ? [p.images] : p.image ? [p.image] : [];

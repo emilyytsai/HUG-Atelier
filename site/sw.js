@@ -6,7 +6,7 @@
  *
  * Bump VERSION after large changes to clear old copies on every device.
  */
-const VERSION = "v2";
+const VERSION = "v3";
 const SHELL = `hug-shell-${VERSION}`;
 const MEDIA = `hug-media-${VERSION}`;
 
@@ -86,8 +86,11 @@ function networkFirst(event, cacheName, wait) {
       .then((res) => res.ok && res.type === "basic" && caches.open(cacheName).then((c) => c.put(req, res.clone())))
       .catch(() => {}),
   );
+  // An error page from the host (404, 5xx, an expired sign-in) never replaces
+  // a good stored copy mid-event.
+  const fresh = network.then((res) => (res.ok && res.type === "basic" ? res : null), () => null);
   const slow = new Promise((resolve) => setTimeout(resolve, wait));
-  return Promise.race([network.catch(() => null), slow]).then(
+  return Promise.race([fresh, slow]).then(
     (res) =>
       res ||
       caches
