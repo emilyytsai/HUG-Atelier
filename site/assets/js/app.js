@@ -527,12 +527,16 @@
       el.mediaImg.src = piece.images[0];
       // Text waits for the photo to land before rising.
       el.focus.classList.add("via-morph");
-      transition("open", update).finally(() => {
-        el.media.style.viewTransitionName = "";
-        el.focus.classList.remove("via-morph");
-        state.busy = false;
-        runQueued();
-      });
+      // The large photo must be decoded before the morph captures it, or the
+      // first frames show an empty frame.
+      const go = () =>
+        transition("open", update).finally(() => {
+          el.media.style.viewTransitionName = "";
+          el.focus.classList.remove("via-morph");
+          state.busy = false;
+          runQueued();
+        });
+      el.mediaImg.decode().then(go, go);
     } else {
       update();
       el.media.style.viewTransitionName = "";
@@ -968,7 +972,7 @@
       dy: 0,
       mode: "wait",
       rect: el.media.getBoundingClientRect(),
-      trail: [{ t: performance.now(), x: e.clientX, y: e.clientY }],
+      trail: [{ t: e.timeStamp, x: e.clientX, y: e.clientY }],
     });
     const at = { x: e.clientX, y: e.clientY };
     touch.timer = setTimeout(() => {
@@ -983,7 +987,7 @@
     fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (touch.mode === "pinch") return movePinch();
     if (e.pointerId !== touch.id) return;
-    const now = performance.now();
+    const now = e.timeStamp;
     touch.trail.push({ t: now, x: e.clientX, y: e.clientY });
     while (touch.trail.length > 2 && now - touch.trail[0].t > 90) touch.trail.shift();
     touch.dx = e.clientX - touch.x0;
@@ -1039,7 +1043,8 @@
     else if (mode === "swipe") {
       const far = Math.abs(dx) > rect.width * 0.22;
       const flick = Math.abs(vx) > 0.45 && Math.sign(vx) === Math.sign(dx);
-      if (!cancelled && (far || flick)) commitSwipe(dx < 0 ? 1 : -1);
+      const flickBack = Math.abs(vx) > 0.3 && Math.sign(vx) !== Math.sign(dx);
+      if (!cancelled && !flickBack && (far || flick)) commitSwipe(dx < 0 ? 1 : -1);
       else settle();
     } else if (mode === "pull") {
       if (!cancelled && (dy > 120 || (dy > 30 && vy > 0.5))) back();
@@ -1125,6 +1130,17 @@
       if (orbit.on || orbit.timer) scheduleOrbit(4000);
     }),
   );
+
+  // On touch screens there is no pointer to follow, so the light drifts on
+  // its own, about 7 times a second (cheap enough to run all day).
+  if (!fineHover.matches && !motionQuery.matches) {
+    const drift0 = performance.now();
+    setInterval(() => {
+      if (document.hidden) return;
+      const angle = 140 + (((performance.now() - drift0) / 16000) % 1) * 360;
+      el.root.style.setProperty("--sheen", `${angle.toFixed(1)}deg`);
+    }, 140);
+  }
 
   // Light moves across the glass as the pointer moves, like a lamp over nacre.
   let sheenFrame = 0;
@@ -1214,11 +1230,15 @@
       const img = new Image();
       img.decoding = "async";
       img.src = src;
+      img.decode().catch(() => {});
     });
   }
   const allImages = [...new Set(pieces.flatMap((p) => [...p.images, ...(p.orbit || [])]))];
   const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 600));
-  idle(() => preload(allImages));
+  idle(() => {
+    preload(allImages);
+    buildIndex();
+  });
 
   // Offline copy for venues with weak wifi (needs https or localhost).
   const secure = location.protocol === "https:" || ["localhost", "127.0.0.1"].includes(location.hostname);

@@ -456,15 +456,16 @@
     transition: opacity 400ms var(--ease-silk);
   }
 
-  /* One sweep of light when a piece opens. Colour dodge brightens what is
-     already bright (pearls, silver) and leaves dark backdrops alone. */
+  /* One sweep of light when a piece opens. Colour dodge with an opaque grey
+     band multiplies brightness (about 1.33x): pearls and silver catch the
+     light, black stays black, and the black around the band changes nothing. */
   .media::after {
     content: "";
     position: absolute;
     inset: 0;
     z-index: 1;
     pointer-events: none;
-    background: linear-gradient(105deg, transparent 42%, rgb(255 255 255 / 0.24) 50%, transparent 58%);
+    background: linear-gradient(105deg, rgb(0 0 0) 40%, rgb(64 64 64) 50%, rgb(0 0 0) 60%);
     background-size: 300% 100%;
     background-position: 130% 0;
     mix-blend-mode: color-dodge;
@@ -1112,6 +1113,16 @@ html[data-vt="next"]::view-transition-group(hero),
 html[data-vt="prev"]::view-transition-group(hero) {
   animation: none;
 }
+/* Opening and closing: one photo travels, rather than two differently
+   cropped copies cross-fading (they disagree when the frame shapes differ). */
+html[data-vt="open"]::view-transition-old(hero),
+html[data-vt="close"]::view-transition-old(hero) {
+  animation: none;
+  opacity: 0;
+}
+html[data-vt="open"]::view-transition-new(hero) {
+  animation: none;
+}
 html[data-vt="close"]::view-transition-group(hero),
 html[data-vt="close"]::view-transition-old(hero),
 html[data-vt="close"]::view-transition-new(hero) {
@@ -1144,12 +1155,6 @@ html[data-vt="prev"]::view-transition-new(root) {
 /* No hover on tablets: the light drifts on its own and the active photo
    slowly moves closer while it is on show. */
 @media (hover: none) {
-  /* Stepped about 7 times a second, and only on the glass itself, so it costs
-     almost nothing while the screen is kept awake all day. */
-  .glass,
-  .pip {
-    animation: sheen-drift 16s steps(112) infinite;
-  }
   .slide-frame img {
     transition: transform 1200ms var(--ease-silk);
   }
@@ -1162,9 +1167,7 @@ html[data-vt="prev"]::view-transition-new(root) {
 /* ------------------------------------------------------------ reduced motion */
 
 @media (prefers-reduced-motion: reduce) {
-  .aura,
-  .glass,
-  .pip {
+  .aura {
     animation: none;
   }
   .slide.is-active .slide-frame img {
