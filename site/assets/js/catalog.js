@@ -167,7 +167,7 @@
       let id = slugify(p.id || name);
       for (let k = 2; seen.has(id); k++) id = `${slugify(p.id || name)}-${k}`;
       seen.add(id);
-      const ref = typeof p.ref === "number" ? `N° ${String(p.ref).padStart(3, "0")}` : cleanText(p.ref, 40, `${where}: ref`);
+      const ref = typeof p.ref === "number" ? `Nº ${String(p.ref).padStart(3, "0")}` : cleanText(p.ref, 40, `${where}: ref`);
 
       // Optional light orbit: frames of the same photo with the light moving
       // around the piece. files names the frames with ## for the number.

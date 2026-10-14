@@ -97,7 +97,10 @@
       note(`Photo not found: ${src}. Check the file is in assets/products/ and the name matches exactly, including capital letters.`);
       showNotes();
     });
-    img.addEventListener("load", () => img.parentElement.classList.remove("is-missing"));
+    img.addEventListener("load", () => {
+      img.parentElement.classList.remove("is-missing");
+      img.parentElement.classList.add("is-loaded");
+    });
   }
 
   // ----------------------------------------------------------- carousel ---
@@ -143,7 +146,7 @@
     return o;
   }
 
-  const OPACITY = [1, 0.46, 0.14];
+  const OPACITY = [1, 0.78, 0.22];
 
   function layout(instant = false) {
     const jumped = [];
@@ -231,7 +234,10 @@
     syncTimer();
   }
 
-  el.stage.addEventListener("pointerenter", (e) => e.pointerType === "mouse" && hold("hover", true));
+  // Rotation pauses while the mouse is over the photo on show.
+  el.stage.addEventListener("pointermove", (e) => {
+    if (e.pointerType === "mouse") hold("hover", Boolean(e.target.closest(".slide.is-active")));
+  });
   el.stage.addEventListener("pointerleave", (e) => e.pointerType === "mouse" && hold("hover", false));
   el.stage.addEventListener("focusin", (e) => {
     let visible = false;
@@ -298,6 +304,7 @@
     resetDrag();
     setImage(el.mediaImg, piece.images[imageIndex], piece.alt);
     el.ambientImg.src = piece.images[0];
+    setTone(piece.images[imageIndex]);
     el.ref.textContent = piece.ref;
     el.ref.hidden = !piece.ref;
     el.name.textContent = piece.name;
@@ -335,10 +342,10 @@
     return li;
   }
 
-  function showDetail(k) {
+  function showDetail(k, refresh = false) {
     const badge = pieces[state.focus].badges[k];
     if (!badge || !badge.at) return;
-    if (zoom.badge === k) {
+    if (zoom.badge === k && !refresh) {
       endZoom();
       return scheduleOrbit(2500);
     }
@@ -407,6 +414,38 @@
     );
   }
 
+  // Dark photos get smoky glass over them and no tinted panel. The photo's
+  // brightness is measured once from a tiny copy (same-site photos only).
+  const tones = new Map();
+  function setTone(src) {
+    const apply = (tone) => {
+      if (pieces[state.focus] && pieces[state.focus].images[state.image] === src) el.focus.dataset.tone = tone;
+    };
+    if (tones.has(src)) return apply(tones.get(src));
+    el.focus.dataset.tone = "light";
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => {
+      let tone = "light";
+      try {
+        const c = document.createElement("canvas");
+        c.width = 8;
+        c.height = 10;
+        const ctx = c.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0, 8, 10);
+        const d = ctx.getImageData(0, 0, 8, 10).data;
+        let sum = 0;
+        for (let i = 0; i < d.length; i += 4) sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+        if (sum / (d.length / 4) < 95) tone = "dark";
+      } catch {
+        /* opened from a folder: the browser will not let pages read photos */
+      }
+      tones.set(src, tone);
+      apply(tone);
+    };
+    img.src = src;
+  }
+
   function showImage(k) {
     const piece = pieces[state.focus];
     if (!piece || k === state.image) return;
@@ -416,7 +455,10 @@
     [...el.dots.children].forEach((d, n) => d.setAttribute("aria-current", String(n === k)));
     const img = el.mediaImg;
     img.getAnimations().forEach((a) => a.cancel());
-    const swap = () => setImage(img, piece.images[k], piece.alt);
+    const swap = () => {
+      setImage(img, piece.images[k], piece.alt);
+      setTone(piece.images[k]);
+    };
     if (motionQuery.matches) return swap();
     img.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 260, easing: "ease-in", fill: "forwards" }).onfinish = () => {
       swap();
@@ -428,6 +470,11 @@
   function showView(view) {
     state.view = view;
     if (view !== "focus") stopOrbit();
+    // A paused timer would resume mid-morph on the way back; start fresh instead.
+    if (view !== "showcase" && timer) {
+      timer.cancel();
+      timer = null;
+    }
     el.showcase.hidden = view === "focus";
     el.showcase.inert = view !== "showcase";
     el.focus.hidden = view !== "focus";
@@ -453,7 +500,7 @@
   }
 
   // Open a piece, morphing from the photo that was tapped (carousel or index).
-  function open(i, { push = true, animate = true, from = null } = {}) {
+  function open(i, { push = true, animate = true, from = null, focusBack = true } = {}) {
     if (state.busy || !pieces[i]) return;
     if (state.view === "focus") return step(i - state.focus);
     const piece = pieces[i];
@@ -472,15 +519,19 @@
       el.media.classList.add("glint");
       frame.style.viewTransitionName = "";
       el.media.style.viewTransitionName = "hero";
-      el.back.focus({ preventScroll: true });
+      if (focusBack) el.back.focus({ preventScroll: true });
     };
     if (animate && canMorph()) {
       state.busy = true;
       frame.style.viewTransitionName = "hero";
       el.mediaImg.src = piece.images[0];
+      // Text waits for the photo to land before rising.
+      el.focus.classList.add("via-morph");
       transition("open", update).finally(() => {
         el.media.style.viewTransitionName = "";
+        el.focus.classList.remove("via-morph");
         state.busy = false;
+        runQueued();
       });
     } else {
       update();
@@ -533,7 +584,20 @@
     }
   }
 
+  // A press or swipe that arrives mid-transition is kept and played next,
+  // rather than dropped.
+  let queued = 0;
+  function runQueued() {
+    if (!queued || state.busy || state.view !== "focus") return (queued = 0);
+    const d = queued;
+    queued = 0;
+    step(d);
+  }
   function step(delta) {
+    if (state.view === "focus" && state.busy && delta) {
+      queued = Math.sign(delta);
+      return;
+    }
     if (state.view !== "focus" || count < 2 || state.busy || !delta) return;
     const i = (((state.focus + delta) % count) + count) % count;
     history.replaceState({ hug: pieces[i].id, pushed: history.state?.pushed }, "", `#${pieces[i].id}`);
@@ -544,11 +608,12 @@
     transition(delta > 0 ? "next" : "prev", () => renderPiece(i)).finally(() => {
       el.media.style.viewTransitionName = "";
       state.busy = false;
+      runQueued();
     });
   }
 
   function back() {
-    if (state.view === "index") return closeIndex();
+    if (state.view === "index") return leaveIndex();
     if (state.view !== "focus") return;
     if (history.state && history.state.hug && history.state.pushed) history.back();
     else {
@@ -566,7 +631,11 @@
     }
     const id = hashId();
     const i = id ? pieces.findIndex((p) => p.id === id) : -1;
-    if (i < 0) return close();
+    if (i < 0) {
+      if (state.view === "focus") return close();
+      if (state.view === "index" && !(history.state && history.state.hugIndex)) return closeIndex();
+      return;
+    }
     if (state.view === "focus") {
       if (i !== state.focus) step(i - state.focus);
     } else open(i, { push: false });
@@ -622,6 +691,8 @@
   // The carousel photo morphs into its place in the grid, and back.
   function openIndex() {
     if (state.busy || state.view !== "showcase" || !count) return;
+    // Its own history entry, so the browser's back button closes it.
+    history.pushState({ hugIndex: true, pushed: true }, "", location.pathname + location.search);
     buildIndex();
     const from = slides[state.active].frame;
     const to = indexFrames[state.active];
@@ -630,22 +701,25 @@
       showView("index");
       el.index.scrollTop = 0;
       to.scrollIntoView({ block: "nearest" });
-      el.index.classList.remove("is-in");
+      el.index.classList.remove("is-in", "is-fading");
       void el.index.offsetWidth;
       el.index.classList.add("is-in");
+      if (!canMorph()) el.index.classList.add("is-fading");
       from.style.viewTransitionName = "";
       to.style.viewTransitionName = "hero";
       el.indexBack.focus({ preventScroll: true });
     };
     if (!canMorph()) return update();
     state.busy = true;
-    el.index.classList.add("is-morphing");
     from.style.viewTransitionName = "hero";
     transition("index", update).finally(() => {
       to.style.viewTransitionName = "";
-      el.index.classList.remove("is-morphing");
       state.busy = false;
     });
+  }
+  function leaveIndex() {
+    if (history.state && history.state.hugIndex) history.back();
+    else closeIndex();
   }
   function closeIndex() {
     if (state.view !== "index" || state.busy) return;
@@ -671,7 +745,7 @@
     transition("index", update).finally(done);
   }
   el.counter.addEventListener("click", openIndex);
-  el.indexBack.addEventListener("click", closeIndex);
+  el.indexBack.addEventListener("click", leaveIndex);
 
   // --------------------------------------------------------------- zoom ---
 
@@ -750,6 +824,13 @@
     if (e.pointerType === "mouse") endZoom();
   });
   el.media.addEventListener("contextmenu", (e) => e.preventDefault());
+  let resizeTimer = 0;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (state.view === "focus" && zoom.badge >= 0) showDetail(zoom.badge, true);
+    }, 200);
+  });
   el.media.addEventListener("animationend", (e) => {
     if (e.animationName === "glint") el.media.classList.remove("glint");
   });
@@ -840,6 +921,7 @@
       const swap = () => {
         renderPiece(i);
         state.busy = false;
+        runQueued();
       };
       el.mediaImg.decode().then(swap, swap);
     }, 470);
@@ -1073,7 +1155,7 @@
       else if (key === "g" || key === "G") openIndex();
       else return;
     } else if (state.view === "index") {
-      if (key === "Escape" || key === "Backspace" || key === "g" || key === "G") closeIndex();
+      if (key === "Escape" || key === "Backspace" || key === "g" || key === "G") leaveIndex();
       else return;
     } else {
       if (key === "ArrowRight") step(1);
@@ -1226,6 +1308,7 @@
   layout(true);
   caption(true);
   showNotes();
+  setTimeout(() => document.body.classList.remove("is-booting"), 2200);
   stayAwake();
   const startId = hashId();
   const startAt = pieces.findIndex((p) => p.id === startId);
@@ -1233,7 +1316,7 @@
     state.active = startAt;
     layout(true);
     caption(true);
-    open(startAt, { push: false, animate: false });
+    open(startAt, { push: false, animate: false, focusBack: false });
   }
   restartTimer();
 })();

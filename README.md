@@ -34,7 +34,7 @@ Everything shown comes from one file: **`site/products.js`**. Edit it, save, rel
 ```js
 {
   name: "Coral Drop Earrings",
-  ref: "N° 008",
+  ref: "Nº 008",
   images: ["assets/products/coral-drop.webp"],
   alt: "Two baroque pearl drops on silver hooks",
 },

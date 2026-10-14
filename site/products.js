@@ -21,8 +21,8 @@
  *   images   Required. One or more photos: ["assets/products/name.webp"].
  *            A bare file name like "name.webp" also works.
  *   alt      Optional. Short description of the photo for screen readers.
- *   ref      Optional. Small reference above the title: "N° 014", or just
- *            the number 14, which shows as N° 014.
+ *   ref      Optional. Small reference above the title: "Nº 014", or just
+ *            the number 14, which shows as Nº 014.
  *   badges   Optional. Replaces the default badges for this piece only.
  *            A badge can point at a spot on the main photo:
  *            { label: "Luxury-Grade Silver", at: [0.5, 0.08] }
@@ -51,7 +51,7 @@ window.HUG_ATELIER = {
   pieces: [
     {
       name: "Tidal Strand",
-      ref: "N° 001",
+      ref: "Nº 001",
       images: ["assets/products/tidal-strand.webp", "assets/products/tidal-strand-detail.webp"],
       alt: "A long strand of baroque freshwater pearls with a silver clasp, laid in a loose loop",
       badges: [
@@ -62,38 +62,38 @@ window.HUG_ATELIER = {
     },
     {
       name: "Selene Pendant",
-      ref: "N° 002",
+      ref: "Nº 002",
       images: ["assets/products/selene-pendant.webp"],
       alt: "A flat baroque pearl on a fine silver chain, on dark slate",
     },
     {
       name: "Halo Ring",
-      ref: "N° 003",
+      ref: "Nº 003",
       images: ["assets/products/halo-ring.webp"],
       alt: "A single pearl set on a slim silver band",
     },
     {
       name: "Moon Drop Earrings",
-      ref: "N° 004",
+      ref: "Nº 004",
       images: ["assets/products/moon-drop.webp"],
       alt: "A pair of long baroque pearl drops on silver hooks",
     },
     {
       name: "Petal Cluster Studs",
-      ref: "N° 005",
+      ref: "Nº 005",
       images: ["assets/products/petal-studs.webp"],
       alt: "Two studs, each a cluster of small pearls on a silver base",
       badges: ["Luxury-Grade Silver", "Organic Shape", "Freshwater Pearls", "Cluster Setting"],
     },
     {
       name: "Shoreline Bracelet",
-      ref: "N° 006",
+      ref: "Nº 006",
       images: ["assets/products/shoreline-bracelet.webp"],
       alt: "A bracelet of pearls with small silver spacer beads",
     },
     {
       name: "Undertow Lariat",
-      ref: "N° 007",
+      ref: "Nº 007",
       images: ["assets/products/undertow-lariat.webp"],
       alt: "A silver Y-necklace with stationed pearls and a long pearl drop",
     },
