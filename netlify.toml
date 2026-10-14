@@ -1,0 +1,3 @@
+# Netlify publishes only the site/ folder. Security headers live in site/_headers.
+[build]
+  publish = "site"

@@ -1,20 +1,25 @@
 // Local preview server: `npm run serve`, then open http://localhost:8080
-// Serves this folder read-only with the same security headers as _headers.
-// Add `-- --lan` to reach it from a tablet on the same wifi.
+// Serves the site/ folder read-only, with the headers from site/_headers.
+//
+// `npm run serve -- --lan` also lets a tablet on the same network open it.
+// That is plain http: use it only on your own hotspot, never on venue or
+// guest wifi. For events, the hosted https link is safer and works offline.
 import { createServer } from "node:http";
-import { createReadStream, statSync } from "node:fs";
-import { extname, join, normalize, resolve, sep } from "node:path";
+import { createReadStream, realpathSync, statSync } from "node:fs";
+import { extname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isIP } from "node:net";
+import { readHeaders } from "./sync-headers.mjs";
 
-const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
+const ROOT = realpathSync(fileURLToPath(new URL("../site", import.meta.url)));
 const PORT = Number(process.env.PORT) || 8080;
-const HOST = process.argv.includes("--lan") ? "0.0.0.0" : "127.0.0.1";
+const LAN = process.argv.includes("--lan");
+const HOST = LAN ? "0.0.0.0" : "127.0.0.1";
 
 const TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
   ".webmanifest": "application/manifest+json; charset=utf-8",
   ".svg": "image/svg+xml",
   ".png": "image/png",
@@ -26,57 +31,80 @@ const TYPES = {
   ".txt": "text/plain; charset=utf-8",
 };
 
-// Only what the site needs is served; tooling and dotfiles stay private.
-const PUBLIC = /^\/(?:index\.html|products\.js|sw\.js|manifest\.webmanifest|robots\.txt|assets\/.+)$/;
+// Checked against the normalised path, after "..", "%2f" and the like are resolved.
+const PUBLIC =
+  /^(?:index\.html|products\.js|sw\.js|manifest\.webmanifest|robots\.txt|assets\/(?:css\/[^/]+\.css|js\/[^/]+\.js|fonts\/[^/]+\.(?:woff2|txt)|icons\/[^/]+\.(?:svg|png)|products\/(?:[^/]+\/)*[^/]+\.(?:webp|avif|jpe?g|png)))$/i;
 
-const HEADERS = {
-  "Content-Security-Policy":
-    "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",
-  "X-Content-Type-Options": "nosniff",
-  "Referrer-Policy": "no-referrer",
-  "X-Frame-Options": "DENY",
-  "Cross-Origin-Opener-Policy": "same-origin",
-  "Cross-Origin-Resource-Policy": "same-origin",
-  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), fullscreen=(self), screen-wake-lock=(self)",
-  "X-Robots-Tag": "noindex, nofollow",
-};
+// Same headers as the hosted site, minus the https-only ones.
+const SITE = readHeaders().find((b) => b.path === "/*").headers;
+const HEADERS = { ...SITE };
+delete HEADERS["Strict-Transport-Security"];
+HEADERS["Content-Security-Policy"] = HEADERS["Content-Security-Policy"]
+  .split(";")
+  .map((d) => d.trim())
+  .filter((d) => d && !d.startsWith("upgrade-insecure-requests"))
+  .join("; ");
 
-createServer((req, res) => {
-  if (req.method !== "GET" && req.method !== "HEAD") {
-    res.writeHead(405, { Allow: "GET, HEAD" }).end();
-    return;
-  }
+// Only answer to this machine's own names or plain IP addresses. Blocks DNS
+// rebinding, where a web page points its own domain at this server.
+function hostAllowed(host = "") {
+  const name = host.replace(/:\d+$/, "").replace(/^\[|\]$/g, "").toLowerCase();
+  return name === "localhost" || isIP(name) !== 0;
+}
+
+function send(res, status, body = "") {
+  res.writeHead(status, { ...HEADERS, "Content-Type": "text/plain; charset=utf-8" }).end(body);
+}
+
+function locate(rawUrl) {
   let path;
   try {
-    path = decodeURIComponent(new URL(req.url, "http://x").pathname);
+    path = decodeURIComponent(new URL(rawUrl, "http://x").pathname);
   } catch {
-    res.writeHead(400).end();
-    return;
+    return null;
   }
+  if (path.includes("\0") || path.includes("\\")) return null;
   if (path === "/") path = "/index.html";
-  const file = normalize(join(ROOT, path));
-  if (!PUBLIC.test(path) || path.includes("\0") || !file.startsWith(ROOT + sep)) {
-    res.writeHead(404, HEADERS).end("Not found");
-    return;
-  }
-  let info;
+  const file = resolve(ROOT, `.${path}`);
+  const rel = relative(ROOT, file).split(sep).join("/");
+  if (!rel || rel.startsWith("..") || rel.split("/").some((part) => part.startsWith("."))) return null;
+  if (!PUBLIC.test(rel)) return null;
   try {
-    info = statSync(file);
+    const real = realpathSync(file);
+    if (!real.startsWith(ROOT + sep)) return null; // symlink pointing outside site/
+    const info = statSync(real);
+    return info.isFile() ? { file: real, size: info.size } : null;
   } catch {
-    info = null;
+    return null;
   }
-  if (!info || !info.isFile()) {
-    res.writeHead(404, HEADERS).end("Not found");
-    return;
+}
+
+createServer((req, res) => {
+  if (!hostAllowed(req.headers.host)) return send(res, 421, "Misdirected request");
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    res.setHeader("Allow", "GET, HEAD");
+    return send(res, 405, "Method not allowed");
   }
+  const found = locate(req.url);
+  if (!found) return send(res, 404, "Not found");
   res.writeHead(200, {
     ...HEADERS,
-    "Content-Type": TYPES[extname(file).toLowerCase()] || "application/octet-stream",
-    "Content-Length": info.size,
+    "Content-Type": TYPES[extname(found.file).toLowerCase()] || "application/octet-stream",
+    "Content-Length": found.size,
     "Cache-Control": "no-cache",
   });
-  if (req.method === "HEAD") res.end();
-  else createReadStream(file).pipe(res);
-}).listen(PORT, HOST, () => {
-  console.log(`HUG Atelier on http://${HOST === "0.0.0.0" ? "<this-computer's-ip>" : "localhost"}:${PORT}`);
-});
+  if (req.method === "HEAD") return res.end();
+  createReadStream(found.file)
+    .on("error", () => res.destroy())
+    .pipe(res);
+})
+  .on("clientError", (_, socket) => socket.destroy())
+  .listen(PORT, HOST, () => {
+    console.log(`HUG Atelier on http://localhost:${PORT}`);
+    if (LAN) {
+      console.log(
+        "LAN mode: other devices on this network can open it at http://<this-computer's-ip>:" + PORT +
+          "\nUse your own hotspot only. On shared wifi, anyone nearby can read or alter what the tablet sees.",
+      );
+    }
+  });

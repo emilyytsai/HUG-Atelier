@@ -7,70 +7,159 @@
 
   // ------------------------------------------------------------ catalog ---
 
-  const source = window.HUG_ATELIER && typeof window.HUG_ATELIER === "object" ? window.HUG_ATELIER : {};
-  if (!window.HUG_ATELIER) console.warn(LOG, "products.js did not load or has a typo. Nothing to show.");
-
-  const clampNum = (value, min, max, fallback) => {
-    const n = Number(value);
-    return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+  // Problems found in products.js. Always in the console; also on screen when
+  // the page is opened from this computer, or with ?check in the address.
+  const notes = [];
+  const note = (text) => {
+    notes.push(text);
+    console.warn(LOG, text);
   };
-  const cleanText = (value, max) =>
-    typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, max) : "";
-  const cleanList = (value, max) =>
-    Array.isArray(value) ? value.map((v) => cleanText(v, max)).filter(Boolean).slice(0, 8) : null;
+
+  const source = window.HUG_ATELIER && typeof window.HUG_ATELIER === "object" ? window.HUG_ATELIER : {};
+  if (!window.HUG_ATELIER) {
+    const typo = window.HUG_ATELIER_ERROR;
+    note(
+      typo
+        ? `products.js has a mistake${typo.line ? ` near line ${typo.line}` : ""}: usually a missing comma, bracket or straight quote " ${typo.line ? "on that line or just above it" : "where you last edited"}. Nothing can show until it is fixed.`
+        : "products.js did not load. Check that the file is next to index.html and is named products.js.",
+    );
+  }
+
+  // "Did you mean": catches typos in field names, which would otherwise be ignored.
+  const distance = (a, b) => {
+    const row = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+      let prev = row[0];
+      row[0] = i;
+      for (let j = 1; j <= b.length; j++) {
+        const keep = row[j];
+        row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+        prev = keep;
+      }
+    }
+    return row[b.length];
+  };
+  const checkKeys = (obj, known, where) => {
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return;
+    Object.keys(obj).forEach((key) => {
+      if (known.includes(key)) return;
+      const near = known.find((k) => k.toLowerCase() === key.toLowerCase() || distance(k.toLowerCase(), key.toLowerCase()) <= 2);
+      note(`${where}: "${key}" is not a known field${near ? `. Did you mean "${near}"?` : ". It is ignored."}`);
+    });
+  };
+  checkKeys(source, ["settings", "defaultBadges", "pieces"], "products.js");
+
+  const clampNum = (value, min, max, fallback, label) => {
+    if (value === undefined) return fallback;
+    const n = typeof value === "string" ? parseFloat(value) : Number(value);
+    if (!Number.isFinite(n)) {
+      note(`settings: ${label} should be a number, like ${fallback}. Using ${fallback}.`);
+      return fallback;
+    }
+    if (n < min || n > max) note(`settings: ${label} goes from ${min} to ${max}. Using ${Math.min(max, Math.max(min, n))}.`);
+    return Math.min(max, Math.max(min, n));
+  };
+  // Long text is cut at a word, with a note, rather than mid-word.
+  const cleanText = (value, max, where) => {
+    if (typeof value === "number") value = String(value);
+    if (typeof value !== "string") return "";
+    const text = value.replace(/\s+/g, " ").trim();
+    if (text.length <= max) return text;
+    const cut = text.slice(0, max + 1).replace(/\s+\S*$/, "") || text.slice(0, max);
+    if (where) note(`${where} is longer than ${max} characters and was shortened to "${cut}".`);
+    return cut;
+  };
+  const unit = (n) => Math.min(1, Math.max(0, Number(n)));
+
+  // A badge is plain text, or { label, at: [x, y] } to point at a spot on the
+  // main photo (0-1 from the left and from the top).
+  const cleanBadges = (value, where) => {
+    if (value === undefined || value === null) return null;
+    if (typeof value === "string") value = value.split(",");
+    if (!Array.isArray(value)) {
+      note(`${where}: badges should be a list like ["Luxury-Grade Silver", "Organic Shape"]. Using the default badges.`);
+      return null;
+    }
+    const list = value
+      .map((b) => {
+        const label = cleanText(typeof b === "string" ? b : b && b.label, 40, `${where}: a badge`);
+        if (!label) return null;
+        const at = b && Array.isArray(b.at) && b.at.length >= 2 && b.at.slice(0, 2).every((n) => Number.isFinite(Number(n)))
+          ? Object.freeze([unit(b.at[0]), unit(b.at[1])])
+          : null;
+        if (b && typeof b === "object" && b.at !== undefined && !at) note(`${where}: badge "${label}" has an "at" that is not [across, down], like [0.5, 0.2].`);
+        return Object.freeze({ label, at });
+      })
+      .filter(Boolean);
+    if (list.length > 8) note(`${where}: only the first 8 badges are shown.`);
+    return list.slice(0, 8);
+  };
   const slugify = (value) =>
     cleanText(value, 80)
+      .replace(/[đĐ]/g, "d")
       .normalize("NFKD")
       .replace(/[̀-ͯ]/g, "")
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "") || "piece";
 
-  // Photos must be files next to the site (relative paths) or https links.
-  // Anything else (javascript:, data:, //host) is refused.
+  // Photos must be image files inside assets/products/. Common slips are
+  // forgiven (a bare file name, "./", "site/"); anything else (other sites,
+  // data:, "..", odd characters) is refused before it reaches the page.
+  const PHOTO = /^assets\/products\/(?:[^/]+\/)*[^/]+\.(?:webp|avif|jpe?g|png)$/i;
   const safeSrc = (value) => {
-    const s = cleanText(value, 500);
-    if (!s || /[\s"'<>\\`]/.test(s)) return null;
-    if (/^https:\/\/[^/]/i.test(s)) return s;
-    if (/^[a-z][a-z0-9+.-]*:/i.test(s) || s.startsWith("//")) return null;
-    return s;
+    if (typeof value !== "string") return null;
+    let s = value.trim().replace(/^\.\//, "").replace(/^\/+/, "").replace(/^site\//, "");
+    if (s && !s.includes("/")) s = `assets/products/${s}`;
+    if (!s || s.length > 300 || /[\u0000-\u001f\u007f\\?#"'<>`]/.test(s)) return null;
+    if (s.split("/").some((part) => part === ".." || part === ".")) return null;
+    return PHOTO.test(s) ? s : null;
   };
 
   const s = source.settings || {};
+  checkKeys(s, ["autoRotateSeconds", "idleReturnSeconds", "zoom"], "settings");
   const settings = Object.freeze({
-    rotateMs: clampNum(s.autoRotateSeconds, 2, 60, 4) * 1000,
-    idleMs: clampNum(s.idleReturnSeconds, 0, 3600, 90) * 1000,
-    zoom: clampNum(s.zoom, 1.2, 4, 2),
+    rotateMs: clampNum(s.autoRotateSeconds, 2, 60, 4, "autoRotateSeconds") * 1000,
+    idleMs: clampNum(s.idleReturnSeconds, 0, 3600, 90, "idleReturnSeconds") * 1000,
+    zoom: clampNum(s.zoom, 1.2, 4, 2, "zoom"),
   });
 
+  const PIECE_KEYS = ["name", "images", "image", "alt", "ref", "badges", "hidden", "id"];
   const pieces = (() => {
     const out = [];
     const seen = new Set();
-    const fallback = cleanList(source.defaultBadges, 40) || DEFAULT_BADGES;
+    const fallback = cleanBadges(source.defaultBadges, "defaultBadges") || cleanBadges(DEFAULT_BADGES, "");
     if (!Array.isArray(source.pieces)) {
-      if (window.HUG_ATELIER) console.warn(LOG, "pieces should be a list: pieces: [ { ... }, { ... } ]");
+      if (window.HUG_ATELIER) note("products.js: pieces should be a list: pieces: [ { ... }, { ... }, ]");
       return out;
     }
     source.pieces.forEach((p, n) => {
-      const where = `piece ${n + 1} in products.js`;
-      if (!p || typeof p !== "object") return console.warn(LOG, `${where} is not a { ... } block. Skipped.`);
-      if (p.hidden === true) return;
-      const name = cleanText(p.name, 90);
-      if (!name) return console.warn(LOG, `${where} has no name. Skipped.`);
-      const list = Array.isArray(p.images) ? p.images : p.image ? [p.image] : [];
-      const images = list.map(safeSrc).filter(Boolean).slice(0, 12);
-      if (images.length < list.length) console.warn(LOG, `"${name}": a photo path was refused. Use a file in assets/products/ or an https:// link.`);
-      if (!images.length) return console.warn(LOG, `"${name}" has no photo. Skipped.`);
+      const where = `Piece ${n + 1}${p && typeof p.name === "string" && p.name.trim() ? ` ("${p.name.trim()}")` : ""}`;
+      if (!p || typeof p !== "object" || Array.isArray(p)) return note(`${where} is not a { ... } block. Skipped.`);
+      checkKeys(p, PIECE_KEYS, where);
+      if (p.hidden !== undefined && typeof p.hidden !== "boolean") note(`${where}: hidden should be true or false, without quotes.`);
+      if (p.hidden === true || p.hidden === "true") return;
+      const name = cleanText(p.name, 90, `${where}: the name`);
+      if (!name) return note(`${where} has no name. Skipped.`);
+      const list = Array.isArray(p.images) ? p.images : typeof p.images === "string" ? [p.images] : p.image ? [p.image] : [];
+      list.forEach((src) => {
+        if (!safeSrc(src))
+          note(`${where}: the photo ${JSON.stringify(src)} was skipped. Photos are .webp, .jpg, .png or .avif files in assets/products/, written like "assets/products/name.webp".`);
+      });
+      const images = list.map(safeSrc).filter(Boolean);
+      if (images.length > 12) note(`${where}: only the first 12 photos are shown.`);
+      if (!images.length) return note(`${where} has no usable photo. Skipped.`);
       let id = slugify(p.id || name);
       for (let k = 2; seen.has(id); k++) id = `${slugify(p.id || name)}-${k}`;
       seen.add(id);
+      const ref = typeof p.ref === "number" ? `N° ${String(p.ref).padStart(3, "0")}` : cleanText(p.ref, 40, `${where}: ref`);
       out.push(Object.freeze({
         id,
         name,
-        ref: cleanText(p.ref, 40),
-        alt: cleanText(p.alt, 240) || name,
-        images: Object.freeze(images),
-        badges: Object.freeze(cleanList(p.badges, 40) ?? fallback),
+        ref,
+        alt: cleanText(p.alt, 240, `${where}: alt`) || name,
+        images: Object.freeze(images.slice(0, 12)),
+        badges: Object.freeze(cleanBadges(p.badges, where) ?? fallback),
       }));
     });
     return Object.freeze(out);
@@ -91,6 +180,11 @@
     focus: $("focus"),
     media: $("media"),
     mediaImg: $("media-img"),
+    lens: $("lens"),
+    lensImg: $("lens-img"),
+    index: $("index"),
+    indexGrid: $("index-grid"),
+    indexBack: $("index-back"),
     dots: $("dots"),
     panel: $("panel"),
     ambientImg: $("ambient-img"),
@@ -133,10 +227,15 @@
     if (img.getAttribute("src") !== src) img.src = src;
   }
 
+  const missing = new Set();
   function watchImage(img) {
     img.addEventListener("error", () => {
       img.parentElement.classList.add("is-missing");
-      console.warn(LOG, `photo not found: ${img.getAttribute("src")}. Check the file name in products.js.`);
+      const src = img.getAttribute("src");
+      if (missing.has(src)) return;
+      missing.add(src);
+      note(`Photo not found: ${src}. Check the file is in assets/products/ and the name matches exactly, including capital letters.`);
+      showNotes();
     });
     img.addEventListener("load", () => img.parentElement.classList.remove("is-missing"));
   }
@@ -171,7 +270,9 @@
   if (!count) {
     const empty = document.createElement("p");
     empty.className = "empty";
-    empty.textContent = "No pieces to show. Add one in products.js.";
+    empty.textContent = window.HUG_ATELIER
+      ? "No pieces to show. Add one in products.js."
+      : "products.js needs a fix. Open the page from your computer to see where.";
     el.stage.append(empty);
     el.showcase.querySelector(".meta").hidden = true;
   }
@@ -325,7 +426,8 @@
   // -------------------------------------------------------------- focus ---
 
   const ZOOM_DELAY = 120;
-  const zoom = { on: false, x: 0.5, y: 0.5, tx: 0.5, ty: 0.5, raf: 0, delay: 0, pointer: null, anchor: null };
+  const LENS_ZOOM = 2.6;
+  const zoom = { on: false, x: 0.5, y: 0.5, tx: 0.5, ty: 0.5, raf: 0, delay: 0, anchor: null, badge: -1 };
   el.media.style.setProperty("--zoom", String(settings.zoom));
   watchImage(el.mediaImg);
 
@@ -333,20 +435,13 @@
     const piece = pieces[i];
     state.focus = i;
     state.image = imageIndex;
+    resetDrag();
     setImage(el.mediaImg, piece.images[imageIndex], piece.alt);
     el.ambientImg.src = piece.images[0];
     el.ref.textContent = piece.ref;
     el.ref.hidden = !piece.ref;
     el.name.textContent = piece.name;
-    el.badges.replaceChildren(
-      ...piece.badges.map((label, k) => {
-        const li = document.createElement("li");
-        li.className = "badge glass rise";
-        li.style.setProperty("--i", String(k + 2));
-        li.textContent = label;
-        return li;
-      }),
-    );
+    el.badges.replaceChildren(...piece.badges.map(renderBadge));
     el.ref.style.setProperty("--i", "0");
     el.name.style.setProperty("--i", "1");
     renderDots(piece);
@@ -356,6 +451,59 @@
     void el.focus.offsetWidth;
     el.focus.classList.add("is-in");
     preload(piece.images);
+  }
+
+  // Badges with a spot on the photo become buttons that glide the zoom there.
+  function renderBadge(badge, k) {
+    const li = document.createElement("li");
+    li.className = "rise";
+    li.style.setProperty("--i", String(k + 2));
+    const tag = document.createElement(badge.at ? "button" : "span");
+    tag.className = "badge glass";
+    if (badge.at) {
+      tag.type = "button";
+      tag.setAttribute("aria-pressed", "false");
+      const pip = document.createElement("span");
+      pip.className = "pip";
+      pip.setAttribute("aria-hidden", "true");
+      tag.append(pip);
+      tag.addEventListener("click", () => showDetail(k));
+    }
+    tag.append(badge.label);
+    li.append(tag);
+    return li;
+  }
+
+  function showDetail(k) {
+    const badge = pieces[state.focus].badges[k];
+    if (!badge || !badge.at) return;
+    if (zoom.badge === k) return endZoom();
+    if (state.image !== 0) showImage(0);
+    const [x, y] = toFrame(badge.at);
+    endZoom();
+    zoom.badge = k;
+    zoom.tx = x;
+    zoom.ty = y;
+    zoom.on = true;
+    el.media.classList.add("is-zoomed", "is-detail");
+    el.badges.querySelectorAll("button.badge").forEach((b, n) => b.setAttribute("aria-pressed", String(n === k)));
+    const tags = el.badges.querySelectorAll(".badge");
+    tags.forEach((b) => b.matches("button") && b.setAttribute("aria-pressed", String(b === tags[k])));
+    if (!zoom.raf) zoom.raf = requestAnimationFrame(tick);
+  }
+
+  // Photo coordinates (0-1 of the whole photo) to frame coordinates, since the
+  // frame crops the photo to fill it.
+  function toFrame([x, y]) {
+    const img = el.mediaImg;
+    const w = el.media.clientWidth;
+    const h = el.media.clientHeight;
+    const nw = img.naturalWidth || 4;
+    const nh = img.naturalHeight || 5;
+    const k = Math.max(w / nw, h / nh);
+    const fx = ((w - nw * k) / 2 + x * nw * k) / w;
+    const fy = ((h - nh * k) / 2 + y * nh * k) / h;
+    return [Math.min(1, Math.max(0, fx)), Math.min(1, Math.max(0, fy))];
   }
 
   function renderDots(piece) {
@@ -383,6 +531,7 @@
     const piece = pieces[state.focus];
     if (!piece || k === state.image) return;
     state.image = k;
+    if (zoom.badge >= 0) endZoom();
     [...el.dots.children].forEach((d, n) => d.setAttribute("aria-current", String(n === k)));
     const img = el.mediaImg;
     img.getAnimations().forEach((a) => a.cancel());
@@ -397,9 +546,10 @@
 
   function showView(view) {
     state.view = view;
-    el.showcase.hidden = view !== "showcase";
+    el.showcase.hidden = view === "focus";
     el.showcase.inert = view !== "showcase";
     el.focus.hidden = view !== "focus";
+    el.index.hidden = view !== "index";
     syncTimer();
     bumpIdle();
   }
@@ -420,14 +570,20 @@
     });
   }
 
-  function open(i, { push = true, animate = true } = {}) {
+  // Open a piece, morphing from the photo that was tapped (carousel or index).
+  function open(i, { push = true, animate = true, from = null } = {}) {
     if (state.busy || !pieces[i]) return;
     if (state.view === "focus") return step(i - state.focus);
     const piece = pieces[i];
     if (push) history.pushState({ hug: piece.id, pushed: true }, "", `#${piece.id}`);
     endZoom(true);
-    const frame = slides[i].frame;
+    const frame = from || slides[i].frame;
     const update = () => {
+      if (state.active !== i) {
+        state.active = i;
+        layout(true);
+        caption(true);
+      }
       renderPiece(i);
       showView("focus");
       frame.style.viewTransitionName = "";
@@ -462,6 +618,7 @@
       state.active = i;
       layout(true);
       caption(true);
+      resetDrag();
       showView("showcase");
       el.media.style.viewTransitionName = "";
       frame.style.viewTransitionName = "hero";
@@ -501,6 +658,7 @@
   }
 
   function back() {
+    if (state.view === "index") return closeIndex();
     if (state.view !== "focus") return;
     if (history.state && history.state.hug && history.state.pushed) history.back();
     else {
@@ -531,7 +689,68 @@
     if (b) step(Number(b.dataset.step));
   });
 
-  // Hover zoom (mouse) or press-and-hold zoom (touch), following the pointer.
+  // -------------------------------------------------------------- index ---
+
+  // Every piece at once, for jumping straight to the one a client asks about.
+  let indexFrames = [];
+  function buildIndex() {
+    if (indexFrames.length) return;
+    el.indexGrid.replaceChildren(
+      ...pieces.map((piece, i) => {
+        const li = document.createElement("li");
+        li.className = "index-item-wrap";
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "index-item";
+        b.style.setProperty("--i", String(i));
+        const frame = document.createElement("span");
+        frame.className = "index-frame";
+        const img = document.createElement("img");
+        img.alt = "";
+        img.draggable = false;
+        img.decoding = "async";
+        watchImage(img);
+        img.src = piece.images[0];
+        frame.append(img);
+        const name = document.createElement("span");
+        name.className = "index-name";
+        name.textContent = piece.name;
+        b.append(frame, name);
+        if (piece.ref) {
+          const ref = document.createElement("span");
+          ref.className = "index-ref";
+          ref.textContent = piece.ref;
+          b.append(ref);
+        }
+        b.addEventListener("click", () => open(i, { from: frame }));
+        indexFrames.push(frame);
+        li.append(b);
+        return li;
+      }),
+    );
+  }
+  function openIndex() {
+    if (state.busy || state.view !== "showcase" || !count) return;
+    buildIndex();
+    showView("index");
+    el.index.scrollTop = 0;
+    el.index.classList.remove("is-in");
+    void el.index.offsetWidth;
+    el.index.classList.add("is-in");
+    el.indexBack.focus({ preventScroll: true });
+  }
+  function closeIndex() {
+    if (state.view !== "index") return;
+    showView("showcase");
+    if (!el.stage.matches(":hover")) state.holds.delete("hover");
+    restartTimer();
+  }
+  el.counter.addEventListener("click", openIndex);
+  el.indexBack.addEventListener("click", closeIndex);
+
+  // --------------------------------------------------------------- zoom ---
+
+  // Mouse: the photo zooms toward the cursor and follows it smoothly.
   function aim(e) {
     const r = el.media.getBoundingClientRect();
     zoom.tx = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
@@ -540,7 +759,7 @@
     el.media.style.setProperty("--ly", `${e.clientY - r.top}px`);
   }
   function tick() {
-    const ease = motionQuery.matches ? 1 : 0.09;
+    const ease = motionQuery.matches ? 1 : zoom.badge >= 0 ? 0.05 : 0.09;
     zoom.x += (zoom.tx - zoom.x) * ease;
     zoom.y += (zoom.ty - zoom.y) * ease;
     el.mediaImg.style.setProperty("--ox", `${(zoom.x * 100).toFixed(2)}%`);
@@ -564,8 +783,11 @@
     zoom.delay = 0;
     zoom.anchor = null;
     zoom.on = false;
-    zoom.pointer = null;
-    el.media.classList.remove("is-zoomed");
+    if (zoom.badge >= 0) {
+      zoom.badge = -1;
+      el.badges.querySelectorAll("button.badge").forEach((b) => b.setAttribute("aria-pressed", "false"));
+    }
+    el.media.classList.remove("is-zoomed", "is-detail");
     if (now) {
       cancelAnimationFrame(zoom.raf);
       zoom.raf = 0;
@@ -575,9 +797,11 @@
   // Zoom starts only once the mouse really moves over the photo, so opening a
   // piece with the cursor resting on the left half does not jump straight in.
   el.media.addEventListener("pointermove", (e) => {
-    if (e.pointerType !== "mouse") {
-      if (e.pointerId === zoom.pointer) aim(e);
-      return;
+    if (e.pointerType !== "mouse") return;
+    if (zoom.badge >= 0) {
+      zoom.badge = -1;
+      el.media.classList.remove("is-detail");
+      el.badges.querySelectorAll("button.badge").forEach((b) => b.setAttribute("aria-pressed", "false"));
     }
     aim(e);
     if (zoom.on || zoom.delay || state.busy || !fineHover.matches) return;
@@ -594,25 +818,120 @@
   el.media.addEventListener("pointerleave", (e) => {
     if (e.pointerType === "mouse") endZoom();
   });
+  el.media.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // Touch: hold for the loupe, swipe sideways for the next piece, pull down
+  // to go back. One finger, decided by its first movement.
+  const touch = { id: null, x0: 0, y0: 0, t0: 0, dx: 0, dy: 0, mode: "", timer: 0, rect: null };
+
+  function resetDrag() {
+    el.media.classList.add("is-dragging");
+    ["--sx", "--sy", "--ps"].forEach((v) => el.mediaImg.style.removeProperty(v));
+    void el.mediaImg.offsetWidth;
+    el.media.classList.remove("is-dragging");
+  }
+  function settle() {
+    el.media.classList.remove("is-dragging");
+    ["--sx", "--sy", "--ps"].forEach((v) => el.mediaImg.style.removeProperty(v));
+  }
+
+  function showLens(x, y) {
+    el.lensImg.src = el.mediaImg.currentSrc || el.mediaImg.src;
+    el.lensImg.style.width = `${touch.rect.width}px`;
+    el.lensImg.style.height = `${touch.rect.height}px`;
+    moveLens(x, y);
+    el.lens.classList.add("is-on");
+  }
+  function moveLens(x, y) {
+    const r = touch.rect;
+    const px = Math.min(r.width, Math.max(0, x - r.left));
+    const py = Math.min(r.height, Math.max(0, y - r.top));
+    const size = el.lens.offsetWidth;
+    const half = size / 2;
+    // Float above the finger; slide to the side near the top edge.
+    let lx = px - half;
+    let ly = py - half - size * 0.85;
+    if (ly < 8) {
+      ly = Math.max(8, py - half);
+      lx = px < r.width / 2 ? px + size * 0.45 : px - size * 1.45;
+    }
+    lx = Math.min(r.width - size - 8, Math.max(8, lx));
+    el.lens.style.translate = `${lx.toFixed(1)}px ${ly.toFixed(1)}px`;
+    el.lensImg.style.transform = `translate3d(${(half - px * LENS_ZOOM).toFixed(1)}px, ${(half - py * LENS_ZOOM).toFixed(1)}px, 0) scale(${LENS_ZOOM})`;
+  }
+  function hideLens() {
+    el.lens.classList.remove("is-on");
+  }
+
   el.media.addEventListener("pointerdown", (e) => {
-    if (e.pointerType === "mouse") return;
-    zoom.pointer = e.pointerId;
+    if (e.pointerType === "mouse" || touch.id !== null || state.busy) return;
+    if (zoom.badge >= 0) endZoom();
+    Object.assign(touch, {
+      id: e.pointerId,
+      x0: e.clientX,
+      y0: e.clientY,
+      t0: performance.now(),
+      dx: 0,
+      dy: 0,
+      mode: "wait",
+      rect: el.media.getBoundingClientRect(),
+    });
     el.media.setPointerCapture(e.pointerId);
-    startZoom(e);
+    const at = { x: e.clientX, y: e.clientY };
+    touch.timer = setTimeout(() => {
+      if (touch.mode !== "wait") return;
+      touch.mode = "lens";
+      showLens(at.x, at.y);
+    }, 200);
+  });
+  el.media.addEventListener("pointermove", (e) => {
+    if (e.pointerId !== touch.id) return;
+    touch.dx = e.clientX - touch.x0;
+    touch.dy = e.clientY - touch.y0;
+    if (touch.mode === "wait") {
+      if (Math.hypot(touch.dx, touch.dy) < 10) return;
+      clearTimeout(touch.timer);
+      if (Math.abs(touch.dx) > Math.abs(touch.dy) && count > 1) touch.mode = "swipe";
+      else if (touch.dy > 0) touch.mode = "pull";
+      else {
+        touch.mode = "lens";
+        showLens(e.clientX, e.clientY);
+      }
+      if (touch.mode !== "lens") el.media.classList.add("is-dragging");
+    }
+    if (touch.mode === "lens") moveLens(e.clientX, e.clientY);
+    else if (touch.mode === "swipe") el.mediaImg.style.setProperty("--sx", `${(touch.dx * 0.9).toFixed(1)}px`);
+    else if (touch.mode === "pull") {
+      const d = Math.max(0, touch.dy);
+      el.mediaImg.style.setProperty("--sy", `${(d * 0.55).toFixed(1)}px`);
+      el.mediaImg.style.setProperty("--ps", (1 - Math.min(d, 420) / 1400).toFixed(4));
+    }
   });
   const touchEnd = (e) => {
-    if (e.pointerId === zoom.pointer) endZoom();
+    if (e.pointerId !== touch.id) return;
+    clearTimeout(touch.timer);
+    const { mode, dx, dy, rect } = touch;
+    const speed = Math.hypot(dx, dy) / Math.max(1, performance.now() - touch.t0);
+    touch.id = null;
+    touch.mode = "";
+    if (mode === "lens") hideLens();
+    else if (mode === "swipe") {
+      if (e.type !== "pointercancel" && (Math.abs(dx) > rect.width * 0.2 || speed > 0.5)) step(dx < 0 ? 1 : -1);
+      else settle();
+    } else if (mode === "pull") {
+      if (e.type !== "pointercancel" && (dy > 110 || (dy > 30 && speed > 0.5))) back();
+      else settle();
+    }
   };
   el.media.addEventListener("pointerup", touchEnd);
   el.media.addEventListener("pointercancel", touchEnd);
-  el.media.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // Light moves across the glass as the pointer moves, like a lamp over nacre.
   let sheenFrame = 0;
   window.addEventListener(
     "pointermove",
     (e) => {
-      if (sheenFrame || motionQuery.matches) return;
+      if (sheenFrame || motionQuery.matches || e.pointerType !== "mouse") return;
       sheenFrame = requestAnimationFrame(() => {
         sheenFrame = 0;
         const angle = 140 + (e.clientX / innerWidth) * 140 + (e.clientY / innerHeight) * 60;
@@ -633,6 +952,10 @@
         go(key === "ArrowRight" ? 1 : -1);
         if (el.stage.contains(document.activeElement)) slides[state.active].button.focus({ preventScroll: true });
       } else if (key === "Enter" && (document.activeElement === document.body || !document.activeElement)) open(state.active);
+      else if (key === "g" || key === "G") openIndex();
+      else return;
+    } else if (state.view === "index") {
+      if (key === "Escape" || key === "Backspace" || key === "g" || key === "G") closeIndex();
       else return;
     } else {
       if (key === "ArrowRight") step(1);
@@ -676,7 +999,7 @@
   let idleTimer = 0;
   function bumpIdle() {
     clearTimeout(idleTimer);
-    if (settings.idleMs && state.view === "focus") idleTimer = setTimeout(back, settings.idleMs);
+    if (settings.idleMs && state.view !== "showcase") idleTimer = setTimeout(back, settings.idleMs);
   }
   ["pointerdown", "pointermove", "keydown", "wheel"].forEach((t) =>
     window.addEventListener(t, bumpIdle, { passive: true }),
@@ -700,19 +1023,91 @@
   // Offline copy for venues with weak wifi (needs https or localhost).
   const secure = location.protocol === "https:" || ["localhost", "127.0.0.1"].includes(location.hostname);
   if ("serviceWorker" in navigator && secure) {
+    // Trusted Types: the only script URL this page may ever load as a worker.
+    const workerUrl = window.trustedTypes
+      ? window.trustedTypes
+          .createPolicy("hug-sw", {
+            createScriptURL: (url) => {
+              if (url !== "sw.js") throw new TypeError("Blocked script URL");
+              return url;
+            },
+          })
+          .createScriptURL("sw.js")
+      : "sw.js";
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("sw.js")
+        .register(workerUrl)
         .then(() => navigator.serviceWorker.ready)
         .then((reg) => reg.active && reg.active.postMessage({ type: "precache", urls: allImages }))
         .catch(() => {});
     });
   }
 
+  // -------------------------------------------------------------- check ---
+
+  // When the owner opens the page from their own computer (or adds ?check),
+  // problems in products.js are listed on screen, since tablets have no console.
+  const checking =
+    location.protocol === "file:" ||
+    ["localhost", "127.0.0.1"].includes(location.hostname) ||
+    new URLSearchParams(location.search).has("check");
+  let panel = null;
+  function showNotes() {
+    if (!checking || !notes.length) return;
+    if (!panel) {
+      panel = document.createElement("aside");
+      panel.className = "check glass";
+      panel.setAttribute("role", "status");
+      const head = document.createElement("div");
+      head.className = "check-head";
+      const title = document.createElement("strong");
+      title.textContent = "products.js";
+      const shut = document.createElement("button");
+      shut.type = "button";
+      shut.className = "check-close";
+      shut.setAttribute("aria-label", "Close");
+      shut.textContent = "×";
+      shut.addEventListener("click", () => {
+        panel.hidden = true;
+      });
+      head.append(title, shut);
+      panel.append(head, document.createElement("ul"));
+      document.body.append(panel);
+    }
+    panel.hidden = false;
+    panel.querySelector("ul").replaceChildren(
+      ...notes.map((text) => {
+        const li = document.createElement("li");
+        li.textContent = text;
+        return li;
+      }),
+    );
+  }
+
+  // Option/Alt-click on the large photo gives the numbers for a badge's "at".
+  el.media.addEventListener("click", (e) => {
+    if (!checking || !e.altKey || state.focus < 0 || state.image !== 0) return;
+    e.preventDefault();
+    const img = el.mediaImg;
+    const r = img.getBoundingClientRect();
+    const u = ((e.clientX - r.left) / r.width) * el.media.clientWidth;
+    const v = ((e.clientY - r.top) / r.height) * el.media.clientHeight;
+    const w = el.media.clientWidth;
+    const h = el.media.clientHeight;
+    const k = Math.max(w / (img.naturalWidth || 4), h / (img.naturalHeight || 5));
+    const x = (u - (w - img.naturalWidth * k) / 2) / (img.naturalWidth * k);
+    const y = (v - (h - img.naturalHeight * k) / 2) / (img.naturalHeight * k);
+    const at = `at: [${x.toFixed(2)}, ${y.toFixed(2)}]`;
+    note(`Spot on "${pieces[state.focus].name}": ${at}`);
+    if (navigator.clipboard) navigator.clipboard.writeText(at).catch(() => {});
+    showNotes();
+  });
+
   // --------------------------------------------------------------- boot ---
 
   layout(true);
   caption(true);
+  showNotes();
   stayAwake();
   const startId = hashId();
   const startAt = pieces.findIndex((p) => p.id === startId);

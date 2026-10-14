@@ -3,9 +3,12 @@
   "private": true,
   "description": "HUG Atelier live presentation lookbook",
   "scripts": {
-    "build": "tailwindcss -i src/styles.css -o assets/css/app.css --minify",
-    "watch": "tailwindcss -i src/styles.css -o assets/css/app.css --watch",
-    "serve": "node tools/serve.mjs"
+    "build": "tailwindcss -i src/styles.css -o site/assets/css/app.css --minify",
+    "watch": "tailwindcss -i src/styles.css -o site/assets/css/app.css --watch",
+    "serve": "node tools/serve.mjs",
+    "headers": "node tools/sync-headers.mjs",
+    "check": "node tools/sync-headers.mjs --check",
+    "check-products": "node tools/check-products.mjs"
   },
   "devDependencies": {
     "@fontsource-variable/bodoni-moda": "^5.3.0",

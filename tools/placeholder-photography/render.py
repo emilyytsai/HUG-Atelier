@@ -7,7 +7,9 @@ assets/products/ with real photographs whenever they are ready; nothing
 else in the site depends on this script.
 
 Usage (needs the `bpy` module, e.g. `pip install bpy` in a venv):
-    python render.py --out ../../assets/products/_raw --only tidal-strand --scale 0.5 --samples 64
+    python render.py --out /tmp/hug-renders --only tidal-strand --scale 0.5 --samples 64
+
+Then convert the PNGs to WebP (1600 x 2000) into site/assets/products/.
 """
 
 import argparse
