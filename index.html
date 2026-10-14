@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#FBF9F6">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="HUG Atelier">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>HUG Atelier</title>
+  <link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <script src="products.js" defer></script>
+  <script src="assets/js/app.js" defer></script>
+</head>
+<body class="font-sans">
+  <div class="aura" aria-hidden="true"></div>
+
+  <main id="showcase" class="showcase">
+    <header class="flex justify-center pt-[clamp(1.5rem,6vh,4.5rem)] pb-[clamp(0.75rem,2.5vh,2rem)]">
+      <h1 id="logo" class="logo">
+        <span class="logo-mark">HUG</span>
+        <span class="logo-sub">Atelier</span>
+      </h1>
+    </header>
+
+    <section id="stage" class="stage" aria-roledescription="carousel" aria-label="Collection">
+      <div id="track" class="track"></div>
+    </section>
+
+    <footer class="caption pt-[clamp(1rem,3.2vh,2.5rem)] pb-[clamp(1.5rem,5.5vh,4rem)] px-6">
+      <h2 id="caption-name" class="caption-name"></h2>
+      <div class="meta" aria-hidden="true">
+        <span class="progress"><span id="progress" class="progress-bar"></span></span>
+        <span id="counter"></span>
+      </div>
+    </footer>
+  </main>
+
+  <section id="focus" class="focus" hidden aria-labelledby="piece-name">
+    <figure id="media" class="media m-0">
+      <img id="media-img" class="media-img" alt="" draggable="false" decoding="async">
+      <span class="loupe" aria-hidden="true"></span>
+      <div id="dots" class="dots glass" hidden></div>
+    </figure>
+
+    <div id="panel" class="panel">
+      <div class="ambient" aria-hidden="true"><img id="ambient-img" alt="" draggable="false" decoding="async"></div>
+      <div class="panel-body">
+        <p id="piece-ref" class="ref rise" hidden></p>
+        <h2 id="piece-name" class="piece-name rise"></h2>
+        <ul id="badges" class="badges" aria-label="Specifications"></ul>
+      </div>
+      <nav id="nav" class="nav fade" aria-label="Pieces">
+        <button type="button" class="round glass" data-step="-1" aria-label="Previous piece">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        </button>
+        <span id="focus-counter" aria-hidden="true"></span>
+        <button type="button" class="round glass" data-step="1" aria-label="Next piece">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </nav>
+    </div>
+
+    <button id="back" type="button" class="back glass">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+      Back
+    </button>
+  </section>
+
+  <noscript><p class="fixed inset-0 grid place-items-center text-xs tracking-[0.3em] uppercase text-taupe">Turn on JavaScript to view the collection.</p></noscript>
+</body>
+</html>
