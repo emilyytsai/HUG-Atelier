@@ -106,6 +106,13 @@
   const fineHover = matchMedia("(hover: hover) and (pointer: fine)");
   const canMorph = () => typeof document.startViewTransition === "function" && !motionQuery.matches;
   const pad = (n) => String(n).padStart(2, "0");
+  const hashId = () => {
+    try {
+      return decodeURIComponent(location.hash.slice(1));
+    } catch {
+      return "";
+    }
+  };
   const count = pieces.length;
 
   const state = {
@@ -253,9 +260,9 @@
   }
   function syncTimer() {
     if (!timer) return;
-    const hold = state.view !== "showcase" || state.holds.size > 0 || document.hidden;
-    if (hold && timer.playState === "running") timer.pause();
-    else if (!hold && timer.playState === "paused") timer.play();
+    const paused = state.view !== "showcase" || state.holds.size > 0 || document.hidden;
+    if (paused && timer.playState === "running") timer.pause();
+    else if (!paused && timer.playState === "paused") timer.play();
   }
   function hold(reason, on) {
     if (on) state.holds.add(reason);
@@ -463,6 +470,10 @@
     const done = () => {
       frame.style.viewTransitionName = "";
       state.busy = false;
+      // Pauses set before the piece opened may be stale now (pointer moved away).
+      state.holds.delete("keyboard");
+      state.holds.delete("drag");
+      if (!el.stage.matches(":hover")) state.holds.delete("hover");
       restartTimer();
     };
     if (animate && canMorph()) {
@@ -505,7 +516,7 @@
       pendingRoute = true;
       return;
     }
-    const id = decodeURIComponent(location.hash.slice(1));
+    const id = hashId();
     const i = id ? pieces.findIndex((p) => p.id === id) : -1;
     if (i < 0) return close();
     if (state.view === "focus") {
@@ -703,7 +714,7 @@
   layout(true);
   caption(true);
   stayAwake();
-  const startId = decodeURIComponent(location.hash.slice(1));
+  const startId = hashId();
   const startAt = pieces.findIndex((p) => p.id === startId);
   if (startAt >= 0) {
     state.active = startAt;
