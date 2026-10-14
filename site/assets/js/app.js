@@ -311,6 +311,7 @@
     void el.focus.offsetWidth;
     el.focus.classList.add("is-in");
     preload(piece.images);
+    scheduleOrbit();
   }
 
   // Badges with a spot on the photo become buttons that glide the zoom there.
@@ -337,7 +338,11 @@
   function showDetail(k) {
     const badge = pieces[state.focus].badges[k];
     if (!badge || !badge.at) return;
-    if (zoom.badge === k) return endZoom();
+    if (zoom.badge === k) {
+      endZoom();
+      return scheduleOrbit(2500);
+    }
+    stopOrbit();
     if (state.image !== 0) showImage(0);
     // Slide the crop window toward the spot first: in a frame narrower or
     // taller than the photo, the spot may sit in the part that is cropped off.
@@ -407,6 +412,7 @@
     if (!piece || k === state.image) return;
     state.image = k;
     if (zoom.badge >= 0) endZoom();
+    scheduleOrbit();
     [...el.dots.children].forEach((d, n) => d.setAttribute("aria-current", String(n === k)));
     const img = el.mediaImg;
     img.getAnimations().forEach((a) => a.cancel());
@@ -421,6 +427,7 @@
 
   function showView(view) {
     state.view = view;
+    if (view !== "focus") stopOrbit();
     el.showcase.hidden = view === "focus";
     el.showcase.inert = view !== "showcase";
     el.focus.hidden = view !== "focus";
@@ -960,6 +967,83 @@
   el.media.addEventListener("pointerup", touchEnd);
   el.media.addEventListener("pointercancel", touchEnd);
 
+  // -------------------------------------------------------------- orbit ---
+
+  // When a piece has light-orbit frames and nobody is touching the photo, the
+  // light slowly circles it so the pearls' lustre moves. Consecutive frames are
+  // cross-faded, so 24 frames read as continuous motion.
+  const orbit = { canvas: $("orbit"), ctx: null, frames: [], src: null, raf: 0, timer: 0, start: 0, on: false };
+  const ORBIT_FPS = 4.5;
+
+  function loadOrbit(list) {
+    if (orbit.src === list) return;
+    orbit.src = list;
+    orbit.frames = list
+      ? list.map((src) => {
+          const img = new Image();
+          img.decoding = "async";
+          img.src = src;
+          return img;
+        })
+      : [];
+  }
+  function orbitReady() {
+    return orbit.frames.length > 1 && orbit.frames.every((img) => img.complete && img.naturalWidth);
+  }
+  function stopOrbit() {
+    clearTimeout(orbit.timer);
+    cancelAnimationFrame(orbit.raf);
+    orbit.raf = 0;
+    orbit.on = false;
+    el.media.classList.remove("is-orbiting");
+  }
+  function scheduleOrbit(wait = 1600) {
+    stopOrbit();
+    const piece = pieces[state.focus];
+    if (!piece || !piece.orbit || state.view !== "focus" || state.image !== 0 || motionQuery.matches) return;
+    loadOrbit(piece.orbit);
+    orbit.timer = setTimeout(startOrbit, wait);
+  }
+  function startOrbit() {
+    if (zoom.on || touch.mode || state.busy || state.view !== "focus") return scheduleOrbit(2500);
+    if (!orbitReady()) return scheduleOrbit(800);
+    const ratio = Math.min(2, window.devicePixelRatio || 1);
+    orbit.canvas.width = Math.round(el.media.clientWidth * ratio);
+    orbit.canvas.height = Math.round(el.media.clientHeight * ratio);
+    orbit.ctx = orbit.canvas.getContext("2d");
+    orbit.start = performance.now();
+    orbit.on = true;
+    drawOrbit(orbit.start);
+    el.media.classList.add("is-orbiting");
+    orbit.raf = requestAnimationFrame(loopOrbit);
+  }
+  function drawCover(img, alpha) {
+    const { width: cw, height: ch } = orbit.canvas;
+    const k = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
+    const dw = img.naturalWidth * k;
+    const dh = img.naturalHeight * k;
+    orbit.ctx.globalAlpha = alpha;
+    orbit.ctx.drawImage(img, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
+  }
+  function drawOrbit(now) {
+    const n = orbit.frames.length;
+    const t = ((now - orbit.start) / 1000) * ORBIT_FPS;
+    const f = Math.floor(t) % n;
+    drawCover(orbit.frames[f], 1);
+    drawCover(orbit.frames[(f + 1) % n], t - Math.floor(t));
+  }
+  function loopOrbit(now) {
+    if (!orbit.on) return;
+    drawOrbit(now);
+    orbit.raf = requestAnimationFrame(loopOrbit);
+  }
+  // Any touch or hover on the photo hands it back to the still photo and zoom.
+  ["pointerdown", "pointermove"].forEach((type) =>
+    el.media.addEventListener(type, () => {
+      if (orbit.on || orbit.timer) scheduleOrbit(4000);
+    }),
+  );
+
   // Light moves across the glass as the pointer moves, like a lamp over nacre.
   let sheenFrame = 0;
   window.addEventListener(
@@ -1050,7 +1134,7 @@
       img.src = src;
     });
   }
-  const allImages = [...new Set(pieces.flatMap((p) => p.images))];
+  const allImages = [...new Set(pieces.flatMap((p) => [...p.images, ...(p.orbit || [])]))];
   const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 600));
   idle(() => preload(allImages));
 

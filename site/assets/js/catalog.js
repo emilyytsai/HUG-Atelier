@@ -5,7 +5,7 @@
   "use strict";
 
   const DEFAULT_BADGES = ["Luxury-Grade Silver", "Organic Shape", "Freshwater Pearls"];
-  const PIECE_KEYS = ["name", "images", "image", "alt", "ref", "badges", "hidden", "id"];
+  const PIECE_KEYS = ["name", "images", "image", "alt", "ref", "badges", "hidden", "id", "orbit"];
   const SETTING_KEYS = ["autoRotateSeconds", "idleReturnSeconds", "zoom"];
   const PHOTO = /^assets\/products\/(?:[^/]+\/)*[^/]+\.(?:webp|avif|jpe?g|png)$/i;
 
@@ -168,6 +168,22 @@
       for (let k = 2; seen.has(id); k++) id = `${slugify(p.id || name)}-${k}`;
       seen.add(id);
       const ref = typeof p.ref === "number" ? `N° ${String(p.ref).padStart(3, "0")}` : cleanText(p.ref, 40, `${where}: ref`);
+
+      // Optional light orbit: frames of the same photo with the light moving
+      // around the piece. files names the frames with ## for the number.
+      let orbit = null;
+      if (p.orbit !== undefined) {
+        const o = p.orbit || {};
+        const frames = Math.round(Number(o.frames));
+        const files = typeof o.files === "string" ? o.files : "";
+        if (!Number.isFinite(frames) || frames < 2 || frames > 72 || !files.includes("##")) {
+          note(`${where}: orbit should look like { frames: 24, files: "assets/products/name-orbit-##.webp" }. Ignored.`);
+        } else {
+          const list = Array.from({ length: frames }, (_, f) => safeSrc(files.replace("##", String(f).padStart(2, "0"))));
+          if (list.every(Boolean)) orbit = Object.freeze(list);
+          else note(`${where}: the orbit files ${JSON.stringify(files)} are not usable photo paths. Ignored.`);
+        }
+      }
       pieces.push(
         Object.freeze({
           id,
@@ -176,6 +192,7 @@
           alt: cleanText(p.alt, 240, `${where}: alt`) || name,
           images: Object.freeze(images.slice(0, 12)),
           badges: Object.freeze(cleanBadges(p.badges, where) ?? fallback),
+          orbit,
         }),
       );
     });

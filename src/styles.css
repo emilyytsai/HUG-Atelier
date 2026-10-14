@@ -392,6 +392,27 @@
     transition: none;
   }
 
+  /* Light orbit: frames of the same photo with the light circling the piece,
+     shown over the still photo while nobody is touching it. */
+  .media-orbit {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 700ms var(--ease-silk);
+  }
+  .media.is-orbiting .media-orbit {
+    opacity: 1;
+  }
+  .media.is-zoomed .media-orbit,
+  .media.is-swiping .media-orbit,
+  .media.is-dragging .media-orbit {
+    opacity: 0;
+    transition-duration: 250ms;
+  }
+
   /* The panel and Back fade as the photo is swiped or pulled away. */
   .panel,
   .focus > .back {

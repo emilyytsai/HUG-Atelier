@@ -10,6 +10,7 @@ Usage (needs the `bpy` module, e.g. `pip install bpy` in a venv):
     python render.py --out /tmp/hug-renders --only tidal-strand --scale 0.5 --samples 64
 
 Then convert the PNGs to WebP (1600 x 2000) into site/assets/products/.
+Add --orbit 24 to render a light orbit (24 frames, key light circling the piece).
 """
 
 import argparse
@@ -571,6 +572,8 @@ def main():
     ap.add_argument("--only", nargs="*")
     ap.add_argument("--scale", type=float, default=1.0)
     ap.add_argument("--samples", type=int, default=160)
+    ap.add_argument("--orbit", type=int, default=0,
+                    help="render N frames with the key light circling the piece (camera still)")
     args = ap.parse_args(argv)
     os.makedirs(args.out, exist_ok=True)
     for slug, build in PIECES.items():
@@ -586,9 +589,24 @@ def main():
         scene.cycles.samples = args.samples
         scene.render.image_settings.file_format = "PNG"
         scene.render.image_settings.color_depth = "16"
-        scene.render.filepath = os.path.join(args.out, f"{slug}.png")
-        bpy.ops.render.render(write_still=True)
-        print("rendered", slug, flush=True)
+        if not args.orbit:
+            scene.render.filepath = os.path.join(args.out, f"{slug}.png")
+            bpy.ops.render.render(write_still=True)
+            print("rendered", slug, flush=True)
+            continue
+        # Light orbit: the key light travels a full circle around the piece at
+        # its own height, so highlights and orient move across the pearls.
+        key = bpy.data.objects["Key"]
+        start = Vector(key.location)
+        radius = math.hypot(start.x, start.y)
+        angle0 = math.atan2(start.y, start.x)
+        for f in range(args.orbit):
+            a = angle0 + f / args.orbit * math.tau
+            key.location = (radius * math.cos(a), radius * math.sin(a), start.z)
+            key.rotation_euler = (Vector((0, 0, 0)) - key.location).to_track_quat("-Z", "Y").to_euler()
+            scene.render.filepath = os.path.join(args.out, f"{slug}-orbit-{f:02d}.png")
+            bpy.ops.render.render(write_still=True)
+            print("rendered", slug, f, flush=True)
 
 
 if __name__ == "__main__":
