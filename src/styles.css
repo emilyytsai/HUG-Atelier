@@ -868,30 +868,42 @@
   .menu {
     position: fixed;
     top: max(1.25rem, env(safe-area-inset-top));
-    right: max(1.25rem, env(safe-area-inset-right));
+    left: max(1.25rem, env(safe-area-inset-left));
     z-index: 6;
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+  /* The bubble: a circle around the icon that grows into the panel. Its
+     size comes from the list (--mw, --mh), measured as it opens. */
+  .menu-glass {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--mw, 2.75rem);
+    height: var(--mh, 2.75rem);
+    border-radius: 1.375rem;
+    background-color: rgb(251 249 246 / 0.55);
+    transition:
+      width 560ms var(--ease-silk),
+      height 560ms var(--ease-silk),
+      background-color 400ms var(--ease-silk);
+  }
+  .menu.is-open .menu-glass {
+    background-color: rgb(251 249 246 / 0.78);
   }
   .menu-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.7rem;
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
     height: 2.75rem;
-    padding: 0 1.25rem 0 1.05rem;
     border-radius: 999px;
-    font-size: 0.6875rem;
-    font-weight: 450;
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
     color: var(--color-ink);
-    background-color: rgb(251 249 246 / 0.55);
   }
-  @media (max-width: 639px) {
-    .menu-label {
-      display: none;
-    }
-    .menu-button {
-      padding: 0 0.95rem;
-    }
+  .menu-button:focus-visible {
+    outline: 1.5px solid rgb(26 26 26 / 0.45);
+    outline-offset: -3px;
   }
   .menu-icon {
     display: grid;
@@ -916,34 +928,30 @@
   .menu.is-open .menu-icon i {
     width: 100%;
   }
+  /* The list sits inside the bubble, under the icon, and fades in once the
+     bubble has room for it. */
   .menu-panel {
     position: absolute;
-    top: calc(100% + 0.5rem);
-    right: 0;
+    top: 2.75rem;
+    left: 0;
+    z-index: 1;
     min-width: 15.5rem;
-    padding: 0.5rem;
-    border-radius: 1.25rem;
-    background-color: rgb(251 249 246 / 0.72);
+    padding: 0 0.5rem 0.5rem;
     opacity: 0;
     visibility: hidden;
-    translate: 0 -0.5rem;
-    scale: 0.97;
-    transform-origin: top right;
+    translate: 0 -0.35rem;
     transition:
-      opacity 320ms var(--ease-silk),
-      translate 520ms var(--ease-silk),
-      scale 520ms var(--ease-silk),
-      visibility 0s linear 520ms;
+      opacity 200ms var(--ease-silk),
+      translate 400ms var(--ease-silk),
+      visibility 0s linear 400ms;
   }
   .menu.is-open .menu-panel {
     opacity: 1;
     visibility: visible;
     translate: 0 0;
-    scale: 1;
     transition:
-      opacity 320ms var(--ease-silk),
-      translate 520ms var(--ease-silk),
-      scale 520ms var(--ease-silk),
+      opacity 420ms var(--ease-silk) 160ms,
+      translate 560ms var(--ease-silk) 120ms,
       visibility 0s;
   }
   .menu-list {
@@ -1590,6 +1598,7 @@ html[data-vt="prev"]::view-transition-new(root) {
   .cue span::after {
     animation: none;
   }
+  .menu-glass,
   .menu-panel,
   .menu.is-open .menu-panel {
     transition: none;

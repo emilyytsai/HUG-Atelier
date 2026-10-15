@@ -1163,13 +1163,23 @@
 
   // ---------------------------------------------------- categories menu ---
 
-  // A glass bubble at the top right. Hovering (or tapping) drops down the
-  // categories; choosing one glides the page to its carousel.
+  // A round glass bubble at the top left. Hovering (or tapping) it grows the
+  // bubble itself to show the categories; choosing one glides the page to its
+  // carousel.
   const menu = { open: false, closeTimer: 0, items: new Map() };
+  const menuPanel = $("menu-panel");
   function setMenu(open) {
     clearTimeout(menu.closeTimer);
     if (menu.open === open) return;
     menu.open = open;
+    // The bubble grows to the size of the list, measured as it opens.
+    if (open) {
+      el.menu.style.setProperty("--mw", `${menuPanel.offsetWidth}px`);
+      el.menu.style.setProperty("--mh", `${menuPanel.offsetTop + menuPanel.offsetHeight}px`);
+    } else {
+      el.menu.style.removeProperty("--mw");
+      el.menu.style.removeProperty("--mh");
+    }
     el.menu.classList.toggle("is-open", open);
     el.menuButton.setAttribute("aria-expanded", String(open));
   }
