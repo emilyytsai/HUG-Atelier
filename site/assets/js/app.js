@@ -787,14 +787,12 @@
 
   // --------------------------------------------------------- collections ---
 
-  // One looping carousel per category below the main one. They move with the
-  // same feel as the main carousel: the row follows a finger, mouse or
-  // trackpad exactly, then glides on and settles on a piece with the same
-  // ease-out. Tapping a piece opens it in the piece view.
+  // One looping carousel per category below the main one. They move like
+  // the main carousel: the row follows a finger or mouse exactly, then glides
+  // on and settles on a piece with the same curve. Tapping a piece opens it
+  // in the piece view.
   const cards = []; // by piece index: { row, k, frames }
   const rowDrag = { suppress: false };
-  const easeOut = (t) => 1 - Math.pow(1 - t, 4.2); // close to the main carousel's curve
-  const mod = (a, b) => ((a % b) + b) % b;
 
   function makeCard(i) {
     const piece = pieces[i];
@@ -867,18 +865,27 @@
     arrows.append(prev, next);
     head.append(title, tally, arrows);
 
-    const track = document.createElement("ul");
+    // A window, and a strip of cards that slides inside it as one piece. Only
+    // the strip moves, so the browser glides it without redrawing any card.
+    const track = document.createElement("div");
     track.className = "row-track";
-    track.setAttribute("aria-label", cat.label);
+    const strip = document.createElement("ul");
+    strip.className = "row-strip";
+    strip.setAttribute("aria-label", cat.label);
+    track.append(strip);
     section.append(head, track);
     el.collections.append(section);
 
-    const row = { cat, section, track, items: [], n: cat.pieces.length, pitch: 1, scroll: 0, anim: null, wheelQuiet: 0 };
+    // s: how far the row has moved, in pixels, from its first piece sitting
+    // at the left edge. lead: repeats of the pieces placed before the real
+    // ones, so the loop has cards on both sides.
+    const row = { cat, section, track, strip, n: cat.pieces.length, sets: 0, lead: 0, pitch: 1, loop: 1, edge: 0, s: 0, moving: false };
 
-    // The pieces, then as many repeats as it takes to fill the screen with
-    // room to spare, so the loop never shows a gap. Repeats are invisible to
-    // screen readers and the keyboard.
-    function addSet(copy) {
+    // The pieces once, then repeats on both sides, as many as it takes for
+    // the loop never to show a gap. Repeats are invisible to screen readers
+    // and the keyboard.
+    function addSet(copy, before) {
+      const set = document.createDocumentFragment();
       cat.pieces.forEach((i, k) => {
         const card = makeCard(i);
         if (copy) {
@@ -889,83 +896,95 @@
         }
         if (!cards[i]) cards[i] = { row, k, frames: [] };
         cards[i].frames.push(card.frame);
-        row.items.push(card.li);
-        track.append(card.li);
+        set.append(card.li);
       });
+      if (before) {
+        strip.prepend(set);
+        row.lead++;
+      } else strip.append(set);
+      row.sets++;
     }
-    addSet(false);
+    addSet(false, false);
 
     function measure() {
-      const it = row.items;
-      row.pitch = it.length > 1 ? it[1].offsetLeft - it[0].offsetLeft : it[0].offsetWidth || 1;
-      const needed = Math.max(2, Math.ceil((track.clientWidth + row.pitch * 3) / (row.n * row.pitch)));
-      while (row.items.length / row.n < needed) addSet(true);
+      const width = strip.firstElementChild.getBoundingClientRect().width;
+      row.pitch = width + (parseFloat(getComputedStyle(strip).columnGap) || 0) || 1;
+      row.loop = row.n * row.pitch;
+      row.edge = parseFloat(getComputedStyle(track).paddingLeft) || 0;
+      // At rest the row stays within half a loop of home, and a glide goes at
+      // most one loop further, so cover one and a half loops past each side.
+      const before = Math.ceil(1.5 + (row.edge + row.pitch) / row.loop);
+      const after = Math.ceil(1.5 + (track.clientWidth + row.pitch) / row.loop);
+      while (row.lead < before) addSet(true, true);
+      while (row.sets - row.lead < after) addSet(true, false);
     }
 
-    // Each card sits at its place in an endless strip: one card's width to
-    // the left of the gutter, the rest running off to the right.
-    function render() {
-      const p = row.pitch;
-      const span = row.items.length * p;
-      row.items.forEach((li, j) => {
-        const rel = mod(j * p - row.scroll + p, span) - p;
-        li.style.transform = `translate3d(${(rel - j * p).toFixed(2)}px, 0, 0)`;
-      });
+    function set(s) {
+      row.s = s;
+      strip.style.transform = `translate3d(${(-(row.lead * row.loop + s)).toFixed(2)}px, 0, 0)`;
     }
-
+    // Where the strip is right now, part way through a glide or not.
+    function current() {
+      if (!row.moving) return row.s;
+      const m = new DOMMatrixReadOnly(getComputedStyle(strip).transform);
+      return -m.m41 - row.lead * row.loop;
+    }
+    // Moving by a whole loop looks exactly the same, so the row can always
+    // be put back near home without anyone seeing.
+    const home = (s) => s - Math.round(s / row.loop) * row.loop;
+    function jump(s) {
+      strip.classList.remove("is-gliding");
+      row.moving = false;
+      set(home(s));
+    }
     function stop() {
-      if (row.anim) cancelAnimationFrame(row.anim.raf);
-      row.anim = null;
+      if (row.moving) jump(current());
     }
-    function glideTo(target, duration = 780) {
-      stop();
-      if (motionQuery.matches || duration <= 0) {
-        row.scroll = target;
-        return render();
-      }
-      const from = row.scroll;
-      const anim = { from, target, start: performance.now(), duration, raf: 0 };
-      const frame = (now) => {
-        const t = Math.min(1, (now - anim.start) / anim.duration);
-        row.scroll = from + (target - from) * easeOut(t);
-        render();
-        if (t < 1) anim.raf = requestAnimationFrame(frame);
-        else row.anim = null;
-      };
-      row.anim = anim;
-      anim.raf = requestAnimationFrame(frame);
-    }
-    const settleAt = (projected, duration) => glideTo(Math.round(projected / row.pitch) * row.pitch, duration);
 
-    // Bring piece k into view at the gutter (keyboard focus, or returning
-    // from the piece view), by the shortest way round.
-    function reveal(k, animate) {
+    // Glide to a place with the main carousel's release: 780 ms, quick at
+    // first and settling softly. A new glide carries on from wherever the
+    // last one had got to.
+    function glideTo(target) {
+      let now = current();
+      const shift = Math.round(now / row.loop) * row.loop;
+      now -= shift;
       const p = row.pitch;
-      const loop = row.n * p;
-      const base = row.anim ? row.anim.target : row.scroll;
-      const target = base + (mod(k * p - base + loop / 2, loop) - loop / 2);
-      if (animate) glideTo(target, 650);
-      else {
-        stop();
-        row.scroll = target;
-        render();
+      target = Math.min(Math.floor((now + row.loop) / p) * p, Math.max(Math.ceil((now - row.loop) / p) * p, target - shift));
+      if (motionQuery.matches) return jump(target);
+      if (shift) {
+        jump(now);
+        void strip.offsetWidth; // let the jump land before the glide starts
       }
+      strip.classList.add("is-gliding");
+      row.moving = true;
+      set(target);
+    }
+    const snap = (s) => Math.round(s / row.pitch) * row.pitch;
+    strip.addEventListener("transitionend", (e) => {
+      if (e.target !== strip || e.propertyName !== "transform") return;
+      jump(row.s);
+    });
+
+    // Bring piece k to the left edge (keyboard focus, or coming back from the
+    // piece view), by the shortest way round.
+    function reveal(k, animate) {
+      const base = snap(row.s);
+      const target = base + home(k * row.pitch - base);
+      if (animate) glideTo(target);
+      else jump(target);
     }
 
     // Arrows: one piece per press; quick presses add up into one glide.
-    const nudge = (dir) => {
-      const base = row.anim ? row.anim.target : Math.round(row.scroll / row.pitch) * row.pitch;
-      glideTo(base + dir * row.pitch, 700);
-    };
+    const nudge = (dir) => glideTo(snap(row.s) + dir * row.pitch);
     prev.addEventListener("click", () => nudge(-1));
     next.addEventListener("click", () => nudge(1));
 
-    // Drag with finger or mouse: follows exactly, then glides on with the
-    // flick's speed and settles on a piece.
+    // Drag with finger or mouse: the row follows exactly, then glides on with
+    // the flick's speed and settles on a piece.
     let d = null;
     track.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return;
-      d = { id: e.pointerId, x: e.clientX, y: e.clientY, start: row.scroll, moved: false, trail: [{ t: e.timeStamp, x: e.clientX }] };
+      d = { id: e.pointerId, x: e.clientX, y: e.clientY, start: 0, moved: false, trail: [{ t: e.timeStamp, x: e.clientX }] };
     });
     track.addEventListener("pointermove", (e) => {
       if (!d || e.pointerId !== d.id) return;
@@ -973,15 +992,16 @@
       if (!d.moved) {
         if (Math.abs(dx) < 6 || Math.abs(dx) < Math.abs(e.clientY - d.y)) return;
         d.moved = true;
-        stop();
-        d.start = row.scroll + dx; // carry on from wherever a glide had reached
+        stop(); // catch the row wherever a glide had got to
+        d.start = row.s + dx;
         track.setPointerCapture(e.pointerId);
         track.classList.add("is-dragging");
       }
       d.trail.push({ t: e.timeStamp, x: e.clientX });
       while (d.trail.length > 2 && e.timeStamp - d.trail[0].t > 90) d.trail.shift();
-      row.scroll = d.start - dx;
-      render();
+      const s = d.start - dx;
+      d.start -= s - home(s);
+      set(home(s));
     });
     const release = (e) => {
       if (!d || e.pointerId !== d.id) return;
@@ -993,39 +1013,47 @@
       setTimeout(() => (rowDrag.suppress = false), 0);
       const a = trail[0];
       const z = trail[trail.length - 1];
-      const v = z.t > a.t ? (z.x - a.x) / (z.t - a.t) : 0;
-      settleAt(row.scroll - v * 240, 780);
+      const v = e.type === "pointerup" && z.t > a.t ? (z.x - a.x) / (z.t - a.t) : 0;
+      glideTo(snap(row.s - v * 240));
     };
     track.addEventListener("pointerup", release);
     track.addEventListener("pointercancel", release);
 
-    // Trackpad swipes and sideways wheels move the row directly; it settles
-    // on a piece once the gesture ends. Up and down still scroll the page.
+    // Trackpad swipes and sideways wheels, as on the main carousel: a swipe
+    // glides on a piece, a longer one a piece more for each card's width it
+    // covers. Up and down still scroll the page.
+    const wheel = { sum: 0, steps: 0, quiet: 0 };
     track.addEventListener(
       "wheel",
       (e) => {
         if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
         e.preventDefault();
-        stop(); // take over from any glide, from where it has got to
-        row.scroll += e.deltaMode === 1 ? e.deltaX * 16 : e.deltaX;
-        render();
-        clearTimeout(row.wheelQuiet);
-        row.wheelQuiet = setTimeout(() => settleAt(row.scroll, 520), 140);
+        clearTimeout(wheel.quiet);
+        wheel.quiet = setTimeout(() => {
+          wheel.sum = 0;
+          wheel.steps = 0;
+        }, 160);
+        wheel.sum += e.deltaMode === 1 ? e.deltaX * 16 : e.deltaX;
+        const size = Math.abs(wheel.sum);
+        const steps = size < 30 ? 0 : Math.min(row.n, 1 + Math.floor((size - 30) / (row.pitch * 0.8)));
+        if (steps <= wheel.steps) return;
+        nudge(Math.sign(wheel.sum) * (steps - wheel.steps));
+        wheel.steps = steps;
       },
       { passive: false },
     );
 
     row.measure = measure;
-    row.render = render;
+    row.jump = jump;
     row.reveal = reveal;
     return row;
   });
 
   function layoutRows() {
     rows.forEach((row) => {
+      const at = Math.round(row.s / row.pitch);
       row.measure();
-      row.scroll = Math.round(row.scroll / row.pitch) * row.pitch;
-      row.render();
+      row.jump(at * row.pitch);
     });
   }
   layoutRows();
@@ -1043,7 +1071,7 @@
     const card = cards[i];
     if (!card) return null;
     if (state.originFrame && card.frames.includes(state.originFrame) && onScreen(state.originFrame)) return state.originFrame;
-    const gutter = card.row.track.getBoundingClientRect().left;
+    const gutter = card.row.track.getBoundingClientRect().left + card.row.edge;
     let best = null;
     let bestGap = Infinity;
     card.frames.forEach((f) => {
@@ -1663,14 +1691,16 @@
     }),
   );
 
-  // On touch screens there is no pointer to follow, so the light drifts on
-  // its own, about 7 times a second (cheap enough to run all day).
+  // The moving light plays only in the piece view, and is set there rather
+  // than on the whole page, so the carousels are never restyled for it. On
+  // touch screens there is no pointer to follow, so the light drifts on its
+  // own, about 7 times a second.
   if (!fineHover.matches && !motionQuery.matches) {
     const drift0 = performance.now();
     setInterval(() => {
-      if (document.hidden) return;
+      if (document.hidden || state.view !== "focus") return;
       const angle = 140 + (((performance.now() - drift0) / 16000) % 1) * 360;
-      el.root.style.setProperty("--sheen", `${angle.toFixed(1)}deg`);
+      el.focus.style.setProperty("--sheen", `${angle.toFixed(1)}deg`);
     }, 140);
   }
 
@@ -1679,11 +1709,11 @@
   window.addEventListener(
     "pointermove",
     (e) => {
-      if (sheenFrame || motionQuery.matches || e.pointerType !== "mouse") return;
+      if (sheenFrame || state.view !== "focus" || motionQuery.matches || e.pointerType !== "mouse") return;
       sheenFrame = requestAnimationFrame(() => {
         sheenFrame = 0;
         const angle = 140 + (e.clientX / innerWidth) * 140 + (e.clientY / innerHeight) * 60;
-        el.root.style.setProperty("--sheen", `${angle.toFixed(1)}deg`);
+        el.focus.style.setProperty("--sheen", `${angle.toFixed(1)}deg`);
       });
     },
     { passive: true },

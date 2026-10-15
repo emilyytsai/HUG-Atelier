@@ -1088,19 +1088,31 @@
   }
   /* A clipped strip: the cards are moved by transforms, so the row loops and
      glides with the same feel as the main carousel. */
+  /* The window a row is seen through. clip, not hidden, so focusing a card
+     can never scroll it out of step; min-width keeps it to the page width. */
   .row-track {
     position: relative;
-    display: flex;
-    gap: clamp(0.9rem, 2vw, 2rem);
+    min-width: 0;
     overflow: hidden;
+    overflow: clip;
     padding: 1.25rem var(--gutter) 1.5rem;
-    list-style: none;
-    margin: 0;
     touch-action: pan-y;
   }
-  .row-track > li {
-    flex: 0 0 clamp(12.5rem, 21vw, 19rem);
+  /* The strip of cards slides as one piece. A glide is the main carousel's
+     release: 780 ms, quick at first and settling softly. */
+  .row-strip {
+    display: flex;
+    gap: clamp(0.9rem, 2vw, 2rem);
+    list-style: none;
+    margin: 0;
+    padding: 0;
     will-change: transform;
+  }
+  .row-strip.is-gliding {
+    transition: transform 780ms var(--ease-silk);
+  }
+  .row-strip > li {
+    flex: 0 0 clamp(12.5rem, 21vw, 19rem);
 
     @media (max-width: 639px) {
       flex-basis: 64vw;
