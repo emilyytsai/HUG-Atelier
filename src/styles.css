@@ -205,6 +205,8 @@
   .showcase {
     position: relative;
     height: 100svh;
+    /* The side slides run past the screen edge; they must not widen the page. */
+    overflow-x: clip;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
@@ -845,6 +847,160 @@
     }
   }
 
+  /* --------------------------------------------------- categories menu */
+
+  .menu {
+    position: fixed;
+    top: max(1.25rem, env(safe-area-inset-top));
+    right: max(1.25rem, env(safe-area-inset-right));
+    z-index: 6;
+  }
+  .menu-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    height: 2.75rem;
+    padding: 0 1.25rem 0 1.05rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 450;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--color-ink);
+    background-color: rgb(251 249 246 / 0.55);
+  }
+  @media (max-width: 639px) {
+    .menu-label {
+      display: none;
+    }
+    .menu-button {
+      padding: 0 0.95rem;
+    }
+  }
+  .menu-icon {
+    display: grid;
+    gap: 3px;
+    width: 0.9rem;
+  }
+  .menu-icon i {
+    display: block;
+    height: 1px;
+    background: currentColor;
+    transition: width 500ms var(--ease-silk);
+  }
+  .menu-icon i:nth-child(1) {
+    width: 100%;
+  }
+  .menu-icon i:nth-child(2) {
+    width: 70%;
+  }
+  .menu-icon i:nth-child(3) {
+    width: 45%;
+  }
+  .menu.is-open .menu-icon i {
+    width: 100%;
+  }
+  .menu-panel {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    min-width: 15.5rem;
+    padding: 0.5rem;
+    border-radius: 1.25rem;
+    background-color: rgb(251 249 246 / 0.72);
+    opacity: 0;
+    visibility: hidden;
+    translate: 0 -0.5rem;
+    scale: 0.97;
+    transform-origin: top right;
+    transition:
+      opacity 320ms var(--ease-silk),
+      translate 520ms var(--ease-silk),
+      scale 520ms var(--ease-silk),
+      visibility 0s linear 520ms;
+  }
+  .menu.is-open .menu-panel {
+    opacity: 1;
+    visibility: visible;
+    translate: 0 0;
+    scale: 1;
+    transition:
+      opacity 320ms var(--ease-silk),
+      translate 520ms var(--ease-silk),
+      scale 520ms var(--ease-silk),
+      visibility 0s;
+  }
+  .menu-list {
+    display: grid;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .menu-item,
+  .menu-all {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1.5rem;
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.55rem 0.9rem;
+    border-radius: 0.8rem;
+    text-align: left;
+    color: inherit;
+    transition: background 300ms var(--ease-silk);
+  }
+  .menu-item:hover,
+  .menu-all:hover,
+  .menu-item:focus-visible,
+  .menu-all:focus-visible {
+    background: rgb(255 255 255 / 0.6);
+    outline: none;
+  }
+  .menu-name {
+    position: relative;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.15rem;
+    line-height: 1.2;
+  }
+  /* The category on screen gets a small mark before its name. */
+  .menu-name::before {
+    content: "";
+    position: absolute;
+    left: -0.65rem;
+    top: 50%;
+    width: 0.25rem;
+    height: 0.25rem;
+    margin-top: -0.125rem;
+    border-radius: 999px;
+    background: var(--color-ink);
+    opacity: 0;
+    scale: 0.4;
+    transition:
+      opacity 400ms var(--ease-silk),
+      scale 400ms var(--ease-silk);
+  }
+  .menu-item.is-current .menu-name::before {
+    opacity: 1;
+    scale: 1;
+  }
+  .menu-count {
+    font-size: 0.5625rem;
+    letter-spacing: 0.4em;
+    color: var(--color-taupe);
+    font-variant-numeric: tabular-nums;
+  }
+  .menu-all {
+    margin-top: 0.35rem;
+    border-top: 1px solid rgb(26 26 26 / 0.07);
+    border-radius: 0 0 0.8rem 0.8rem;
+    font-size: 0.625rem;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    align-items: center;
+  }
+
   /* ------------------------------------------------------ scroll cue */
 
   /* A hairline under the main carousel with light running down it: the page
@@ -930,35 +1086,25 @@
       display: none;
     }
   }
+  /* A clipped strip: the cards are moved by transforms, so the row loops and
+     glides with the same feel as the main carousel. */
   .row-track {
     position: relative;
     display: flex;
     gap: clamp(0.9rem, 2vw, 2rem);
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scroll-snap-type: x mandatory;
-    scroll-padding-inline: var(--gutter);
+    overflow: hidden;
     padding: 1.25rem var(--gutter) 1.5rem;
     list-style: none;
     margin: 0;
-    scrollbar-width: none;
-  }
-  .row-track::-webkit-scrollbar {
-    display: none;
+    touch-action: pan-y;
   }
   .row-track > li {
     flex: 0 0 clamp(12.5rem, 21vw, 19rem);
-    scroll-snap-align: start;
+    will-change: transform;
 
     @media (max-width: 639px) {
       flex-basis: 64vw;
     }
-  }
-  .row-track > li:last-child {
-    scroll-snap-align: end;
-  }
-  .row-track.is-dragging {
-    scroll-snap-type: none;
   }
   @media (hover: hover) and (pointer: fine) {
     .row-track {
@@ -1415,6 +1561,10 @@ html[data-vt="prev"]::view-transition-new(root) {
   .aura,
   .cue span::after {
     animation: none;
+  }
+  .menu-panel,
+  .menu.is-open .menu-panel {
+    transition: none;
   }
   .slide.is-active .slide-frame img {
     transform: none;

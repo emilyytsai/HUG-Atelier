@@ -45,7 +45,7 @@ Photo paths start with `assets/products/` (no `site/`); a bare file name like `"
 
 ### Categories and the main carousel
 
-Below the main carousel, the page scrolls down to one carousel per category. The categories and their order are set near the top of `products.js`:
+Below the main carousel, the page scrolls down to one carousel per category. Each one loops, and the Categories bubble at the top right lists them all. The categories and their order are set near the top of `products.js`:
 
 ```js
 categories: ["Rings", "Earrings", "Strings", "Pendants", "Chokers", "Bracelets", "Misc"],
@@ -160,7 +160,7 @@ The tablet picks up the update the next time it opens the lookbook online.
 | Action | Mouse / keyboard | Touch |
 | --- | --- | --- |
 | Next / previous piece | ← → keys, a sideways trackpad swipe, or drag | Swipe the carousel or the large photo |
-| Browse a category | Scroll down; drag a row, swipe it on a trackpad, or use its arrows | Scroll down; swipe a row |
+| Browse a category | Scroll down, or pick it from the Categories bubble (top right); drag a row, swipe it on a trackpad, or use its arrows | Scroll down, or tap the bubble (top right); swipe a row |
 | Open a piece | Click a photo, or Enter | Tap a photo |
 | Inspect closely | Hover over the large photo | Touch and hold the photo; a loupe appears above your finger |
 | Show a detail | Click a badge with a dot | Tap a badge with a dot |

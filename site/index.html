@@ -25,6 +25,16 @@
   <div class="aura" aria-hidden="true"></div>
 
   <div id="page" class="page">
+  <nav id="menu" class="menu" aria-label="Categories" hidden>
+    <button id="menu-button" type="button" class="menu-button glass" aria-label="Categories" aria-expanded="false" aria-controls="menu-panel">
+      <span class="menu-icon" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="menu-label" aria-hidden="true">Categories</span>
+    </button>
+    <div id="menu-panel" class="menu-panel glass">
+      <ul id="menu-list" class="menu-list"></ul>
+      <button id="menu-all" type="button" class="menu-all">All pieces</button>
+    </div>
+  </nav>
   <main id="showcase" class="showcase">
     <header class="flex justify-center pt-[clamp(1.5rem,6vh,4.5rem)] pb-[clamp(1.75rem,5vh,3.5rem)]">
       <h1 id="logo" class="logo">

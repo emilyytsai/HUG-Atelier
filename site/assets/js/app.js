@@ -43,6 +43,10 @@
     lensImg: $("lens-img"),
     index: $("index"),
     indexGroups: $("index-groups"),
+    menu: $("menu"),
+    menuButton: $("menu-button"),
+    menuList: $("menu-list"),
+    menuAll: $("menu-all"),
     page: $("page"),
     collections: $("collections"),
     cue: $("cue"),
@@ -91,6 +95,7 @@
     holds: new Set(),
     busy: false,
     origin: "hero", // where the piece view was opened from: hero, row or index
+    originFrame: null, // the photo it grew out of
     list: hero, // the pieces the piece view steps through
   };
 
@@ -590,7 +595,7 @@
   // which pieces the arrows step through, and where Back returns to.
   function frameFor(i, origin) {
     if (origin === "index") return indexFrames[i] || null;
-    if (origin === "row") return cards[i] ? cards[i].frame : null;
+    if (origin === "row") return rowFrame(i);
     const k = hero.indexOf(i);
     return k >= 0 ? slides[k].frame : null;
   }
@@ -605,15 +610,16 @@
   // A link straight to a piece opens it from wherever it lives on the page.
   const homeOf = (i) => (hero.includes(i) ? "hero" : cards[i] ? "row" : "index");
 
-  function open(i, { push = true, animate = true, origin = homeOf(i), focusBack = true } = {}) {
+  function open(i, { push = true, animate = true, origin = homeOf(i), from = null, focusBack = true } = {}) {
     if (state.busy || !pieces[i]) return;
     if (state.view === "focus") return goTo(i);
     const piece = pieces[i];
     if (push) remember("pushState", { hug: piece.id, pushed: true }, "", `#${piece.id}`);
     endZoom(true);
     state.origin = origin;
+    state.originFrame = from;
     state.list = listFor(i, origin);
-    const frame = frameFor(i, origin);
+    const frame = from || frameFor(i, origin);
     const update = () => {
       const k = hero.indexOf(i);
       if (origin !== "row" && k >= 0 && state.active !== k) {
@@ -656,25 +662,14 @@
     }
   }
 
-  // Put a piece's card in view inside its category carousel.
-  function bringIntoRow(i) {
-    const card = cards[i];
-    if (!card) return;
-    const track = card.track;
-    const pitch = cardPitch(track);
-    const k = card.position;
-    const max = track.scrollWidth - track.clientWidth;
-    const left = track.scrollLeft;
-    if (k * pitch < left || k * pitch + pitch > left + track.clientWidth) track.scrollLeft = Math.min(max, Math.max(0, k * pitch));
-    card.li.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }
-
   function close({ animate = true } = {}) {
     if (state.view !== "focus" || state.busy) return;
     const i = state.focus;
     const origin = state.origin;
     endZoom(true);
-    const frame = frameFor(i, origin);
+    // In a category row the photo to return to is only known once the row
+    // has been brought round to it, so it is found inside the update.
+    let frame = origin === "row" ? null : frameFor(i, origin);
     const update = () => {
       const k = hero.indexOf(i);
       if (origin !== "row" && k >= 0) {
@@ -684,7 +679,10 @@
       }
       resetDrag();
       showView(origin === "index" ? "index" : "showcase");
-      if (origin === "row") bringIntoRow(i);
+      if (origin === "row") {
+        bringIntoRow(i);
+        frame = rowFrame(i);
+      }
       el.media.style.viewTransitionName = "";
       if (frame) frame.style.viewTransitionName = "hero";
       if (origin === "index") {
@@ -702,7 +700,7 @@
       if (!el.stage.matches(":hover")) state.holds.delete("hover");
       restartTimer();
     };
-    if (animate && canMorph() && frame) {
+    if (animate && canMorph() && (frame || origin === "row")) {
       state.busy = true;
       el.media.style.viewTransitionName = "hero";
       transition("close", update).finally(done);
@@ -789,20 +787,67 @@
 
   // --------------------------------------------------------- collections ---
 
-  // One carousel per category below the main one. Each scrolls sideways on
-  // its own: fingers and trackpads natively, a mouse by dragging or with the
-  // arrows. Tapping a piece opens it in the piece view.
-  const cards = []; // by piece index
+  // One looping carousel per category below the main one. They move with the
+  // same feel as the main carousel: the row follows a finger, mouse or
+  // trackpad exactly, then glides on and settles on a piece with the same
+  // ease-out. Tapping a piece opens it in the piece view.
+  const cards = []; // by piece index: { row, k, frames }
   const rowDrag = { suppress: false };
-  const cardPitch = (track) => {
-    const items = track.children;
-    if (items.length > 1) return items[1].offsetLeft - items[0].offsetLeft;
-    return items[0] ? items[0].offsetWidth : 1;
-  };
+  const easeOut = (t) => 1 - Math.pow(1 - t, 4.2); // close to the main carousel's curve
+  const mod = (a, b) => ((a % b) + b) % b;
 
-  categories.forEach((cat) => {
+  function makeCard(i) {
+    const piece = pieces[i];
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "card";
+    const frame = document.createElement("span");
+    frame.className = "card-frame";
+    const img = document.createElement("img");
+    img.alt = "";
+    img.draggable = false;
+    img.decoding = "async";
+    watchImage(img);
+    img.src = piece.images[0];
+    frame.append(img);
+    const name = document.createElement("span");
+    name.className = "card-name";
+    name.textContent = piece.name;
+    b.append(frame, name);
+    if (piece.ref) {
+      const ref = document.createElement("span");
+      ref.className = "card-ref";
+      setRef(ref, piece.ref);
+      b.append(ref);
+    }
+    b.addEventListener("click", () => {
+      if (rowDrag.suppress) return;
+      open(i, { origin: "row", from: frame });
+    });
+    li.append(b);
+    return { li, button: b, frame };
+  }
+
+  function arrowButton(dir, label) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "round glass";
+    b.setAttribute("aria-label", label);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    for (const [k, v] of Object.entries({ width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": 1.2, "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }))
+      svg.setAttribute(k, String(v));
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", dir < 0 ? "M19 12H5M11 18l-6-6 6-6" : "M5 12h14M13 6l6 6-6 6");
+    svg.append(path);
+    b.append(svg);
+    return b;
+  }
+
+  const rows = categories.map((cat) => {
     const section = document.createElement("section");
     section.className = "row";
+    section.id = `category-${cat.id}`;
     section.setAttribute("aria-labelledby", `row-${cat.id}`);
 
     const head = document.createElement("header");
@@ -817,141 +862,210 @@
     tally.setAttribute("aria-hidden", "true");
     const arrows = document.createElement("div");
     arrows.className = "row-arrows";
-    const arrow = (dir) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "round glass";
-      b.dataset.dir = String(dir);
-      b.setAttribute("aria-label", `${dir < 0 ? "Previous" : "Next"} ${cat.label.toLowerCase()}`);
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.setAttribute("width", "16");
-      svg.setAttribute("height", "16");
-      svg.setAttribute("viewBox", "0 0 24 24");
-      svg.setAttribute("fill", "none");
-      svg.setAttribute("stroke", "currentColor");
-      svg.setAttribute("stroke-width", "1.2");
-      svg.setAttribute("stroke-linecap", "round");
-      svg.setAttribute("stroke-linejoin", "round");
-      svg.setAttribute("aria-hidden", "true");
-      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("d", dir < 0 ? "M19 12H5M11 18l-6-6 6-6" : "M5 12h14M13 6l6 6-6 6");
-      svg.append(path);
-      b.append(svg);
-      return b;
-    };
-    const prev = arrow(-1);
-    const next = arrow(1);
+    const prev = arrowButton(-1, `Previous ${cat.label.toLowerCase()}`);
+    const next = arrowButton(1, `Next ${cat.label.toLowerCase()}`);
     arrows.append(prev, next);
     head.append(title, tally, arrows);
 
     const track = document.createElement("ul");
     track.className = "row-track";
     track.setAttribute("aria-label", cat.label);
-    cat.pieces.forEach((i, position) => {
-      const piece = pieces[i];
-      const li = document.createElement("li");
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "card";
-      const frame = document.createElement("span");
-      frame.className = "card-frame";
-      const img = document.createElement("img");
-      img.alt = "";
-      img.draggable = false;
-      img.decoding = "async";
-      img.loading = "lazy";
-      watchImage(img);
-      img.src = piece.images[0];
-      frame.append(img);
-      const name = document.createElement("span");
-      name.className = "card-name";
-      name.textContent = piece.name;
-      b.append(frame, name);
-      if (piece.ref) {
-        const ref = document.createElement("span");
-        ref.className = "card-ref";
-        setRef(ref, piece.ref);
-        b.append(ref);
-      }
-      b.addEventListener("click", () => {
-        if (rowDrag.suppress) return;
-        open(i, { origin: "row" });
-      });
-      li.append(b);
-      track.append(li);
-      cards[i] = { li, frame, track, position };
-    });
     section.append(head, track);
     el.collections.append(section);
 
-    // Arrows: one screenful at a time; dimmed at either end.
-    const smooth = () => (motionQuery.matches ? "auto" : "smooth");
-    const page = (dir) => {
-      const pitch = cardPitch(track);
-      const step = Math.max(pitch, Math.floor(track.clientWidth / pitch) * pitch);
-      track.scrollBy({ left: dir * step, behavior: smooth() });
-    };
-    prev.addEventListener("click", () => page(-1));
-    next.addEventListener("click", () => page(1));
-    let edgeFrame = 0;
-    const edges = () => {
-      edgeFrame = 0;
-      const max = track.scrollWidth - track.clientWidth - 2;
-      prev.disabled = track.scrollLeft <= 2;
-      next.disabled = track.scrollLeft >= max;
-      arrows.hidden = max <= 0;
-    };
-    track.addEventListener("scroll", () => (edgeFrame ||= requestAnimationFrame(edges)), { passive: true });
-    window.addEventListener("resize", () => (edgeFrame ||= requestAnimationFrame(edges)));
-    requestAnimationFrame(edges);
+    const row = { cat, section, track, items: [], n: cat.pieces.length, pitch: 1, scroll: 0, anim: null, wheelQuiet: 0 };
 
-    // Mouse drag: the row follows the pointer, then glides on with the
-    // flick's speed and settles on the nearest piece.
+    // The pieces, then as many repeats as it takes to fill the screen with
+    // room to spare, so the loop never shows a gap. Repeats are invisible to
+    // screen readers and the keyboard.
+    function addSet(copy) {
+      cat.pieces.forEach((i, k) => {
+        const card = makeCard(i);
+        if (copy) {
+          card.li.setAttribute("aria-hidden", "true");
+          card.button.tabIndex = -1;
+        } else {
+          card.button.addEventListener("focus", () => reveal(k, true));
+        }
+        if (!cards[i]) cards[i] = { row, k, frames: [] };
+        cards[i].frames.push(card.frame);
+        row.items.push(card.li);
+        track.append(card.li);
+      });
+    }
+    addSet(false);
+
+    function measure() {
+      const it = row.items;
+      row.pitch = it.length > 1 ? it[1].offsetLeft - it[0].offsetLeft : it[0].offsetWidth || 1;
+      const needed = Math.max(2, Math.ceil((track.clientWidth + row.pitch * 3) / (row.n * row.pitch)));
+      while (row.items.length / row.n < needed) addSet(true);
+    }
+
+    // Each card sits at its place in an endless strip: one card's width to
+    // the left of the gutter, the rest running off to the right.
+    function render() {
+      const p = row.pitch;
+      const span = row.items.length * p;
+      row.items.forEach((li, j) => {
+        const rel = mod(j * p - row.scroll + p, span) - p;
+        li.style.transform = `translate3d(${(rel - j * p).toFixed(2)}px, 0, 0)`;
+      });
+    }
+
+    function stop() {
+      if (row.anim) cancelAnimationFrame(row.anim.raf);
+      row.anim = null;
+    }
+    function glideTo(target, duration = 780) {
+      stop();
+      if (motionQuery.matches || duration <= 0) {
+        row.scroll = target;
+        return render();
+      }
+      const from = row.scroll;
+      const anim = { from, target, start: performance.now(), duration, raf: 0 };
+      const frame = (now) => {
+        const t = Math.min(1, (now - anim.start) / anim.duration);
+        row.scroll = from + (target - from) * easeOut(t);
+        render();
+        if (t < 1) anim.raf = requestAnimationFrame(frame);
+        else row.anim = null;
+      };
+      row.anim = anim;
+      anim.raf = requestAnimationFrame(frame);
+    }
+    const settleAt = (projected, duration) => glideTo(Math.round(projected / row.pitch) * row.pitch, duration);
+
+    // Bring piece k into view at the gutter (keyboard focus, or returning
+    // from the piece view), by the shortest way round.
+    function reveal(k, animate) {
+      const p = row.pitch;
+      const loop = row.n * p;
+      const base = row.anim ? row.anim.target : row.scroll;
+      const target = base + (mod(k * p - base + loop / 2, loop) - loop / 2);
+      if (animate) glideTo(target, 650);
+      else {
+        stop();
+        row.scroll = target;
+        render();
+      }
+    }
+
+    // Arrows: one piece per press; quick presses add up into one glide.
+    const nudge = (dir) => {
+      const base = row.anim ? row.anim.target : Math.round(row.scroll / row.pitch) * row.pitch;
+      glideTo(base + dir * row.pitch, 700);
+    };
+    prev.addEventListener("click", () => nudge(-1));
+    next.addEventListener("click", () => nudge(1));
+
+    // Drag with finger or mouse: follows exactly, then glides on with the
+    // flick's speed and settles on a piece.
     let d = null;
     track.addEventListener("pointerdown", (e) => {
-      if (e.pointerType !== "mouse" || e.button !== 0) return;
-      d = { id: e.pointerId, x: e.clientX, left: track.scrollLeft, moved: false, trail: [{ t: e.timeStamp, x: e.clientX }] };
+      if (e.button !== 0) return;
+      d = { id: e.pointerId, x: e.clientX, y: e.clientY, start: row.scroll, moved: false, trail: [{ t: e.timeStamp, x: e.clientX }] };
     });
     track.addEventListener("pointermove", (e) => {
       if (!d || e.pointerId !== d.id) return;
       const dx = e.clientX - d.x;
       if (!d.moved) {
-        if (Math.abs(dx) < 6) return;
+        if (Math.abs(dx) < 6 || Math.abs(dx) < Math.abs(e.clientY - d.y)) return;
         d.moved = true;
+        stop();
+        d.start = row.scroll + dx; // carry on from wherever a glide had reached
         track.setPointerCapture(e.pointerId);
         track.classList.add("is-dragging");
       }
       d.trail.push({ t: e.timeStamp, x: e.clientX });
       while (d.trail.length > 2 && e.timeStamp - d.trail[0].t > 90) d.trail.shift();
-      track.scrollLeft = d.left - dx;
+      row.scroll = d.start - dx;
+      render();
     });
     const release = (e) => {
       if (!d || e.pointerId !== d.id) return;
       const { moved, trail } = d;
       d = null;
       if (!moved) return;
+      track.classList.remove("is-dragging");
       rowDrag.suppress = true;
       setTimeout(() => (rowDrag.suppress = false), 0);
       const a = trail[0];
       const z = trail[trail.length - 1];
       const v = z.t > a.t ? (z.x - a.x) / (z.t - a.t) : 0;
-      const pitch = cardPitch(track);
-      const max = track.scrollWidth - track.clientWidth;
-      const target = Math.min(max, Math.max(0, Math.round((track.scrollLeft - v * 220) / pitch) * pitch));
-      track.scrollTo({ left: target, behavior: smooth() });
-      // Snapping comes back once the glide has finished, exactly on a piece.
-      let done = false;
-      const snapBack = () => {
-        if (done) return;
-        done = true;
-        track.classList.remove("is-dragging");
-      };
-      track.addEventListener("scrollend", snapBack, { once: true });
-      setTimeout(snapBack, 700);
+      settleAt(row.scroll - v * 240, 780);
     };
     track.addEventListener("pointerup", release);
     track.addEventListener("pointercancel", release);
+
+    // Trackpad swipes and sideways wheels move the row directly; it settles
+    // on a piece once the gesture ends. Up and down still scroll the page.
+    track.addEventListener(
+      "wheel",
+      (e) => {
+        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+        e.preventDefault();
+        stop(); // take over from any glide, from where it has got to
+        row.scroll += e.deltaMode === 1 ? e.deltaX * 16 : e.deltaX;
+        render();
+        clearTimeout(row.wheelQuiet);
+        row.wheelQuiet = setTimeout(() => settleAt(row.scroll, 520), 140);
+      },
+      { passive: false },
+    );
+
+    row.measure = measure;
+    row.render = render;
+    row.reveal = reveal;
+    return row;
   });
+
+  function layoutRows() {
+    rows.forEach((row) => {
+      row.measure();
+      row.scroll = Math.round(row.scroll / row.pitch) * row.pitch;
+      row.render();
+    });
+  }
+  layoutRows();
+  let rowsResize = 0;
+  window.addEventListener("resize", () => {
+    cancelAnimationFrame(rowsResize);
+    rowsResize = requestAnimationFrame(layoutRows);
+  });
+  // Card sizes depend on the fonts; measure again once they have loaded.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(layoutRows);
+
+  // Of the copies of a piece in its row, the one to grow from or return to:
+  // the one tapped, if still in view, otherwise the one nearest the gutter.
+  function rowFrame(i) {
+    const card = cards[i];
+    if (!card) return null;
+    if (state.originFrame && card.frames.includes(state.originFrame) && onScreen(state.originFrame)) return state.originFrame;
+    const gutter = card.row.track.getBoundingClientRect().left;
+    let best = null;
+    let bestGap = Infinity;
+    card.frames.forEach((f) => {
+      if (!onScreen(f)) return;
+      const r = f.getBoundingClientRect();
+      if (r.left < -r.width * 0.25 || r.right > innerWidth + r.width * 0.25) return;
+      const gap = Math.abs(r.left - gutter);
+      if (gap < bestGap) {
+        bestGap = gap;
+        best = f;
+      }
+    });
+    return best;
+  }
+
+  // Put a piece's card in view inside its category carousel.
+  function bringIntoRow(i) {
+    const card = cards[i];
+    if (!card) return;
+    if (!rowFrame(i)) card.row.reveal(card.k, false);
+    card.row.section.scrollIntoView({ block: "nearest" });
+  }
 
   // The hairline under the main carousel scrolls down to the categories.
   if (categories.length) {
@@ -959,6 +1073,87 @@
     el.cue.addEventListener("click", () =>
       el.collections.scrollIntoView({ behavior: motionQuery.matches ? "auto" : "smooth" }),
     );
+  }
+
+  // ---------------------------------------------------- categories menu ---
+
+  // A glass bubble at the top right. Hovering (or tapping) drops down the
+  // categories; choosing one glides the page to its carousel.
+  const menu = { open: false, closeTimer: 0, items: new Map() };
+  function setMenu(open) {
+    clearTimeout(menu.closeTimer);
+    if (menu.open === open) return;
+    menu.open = open;
+    el.menu.classList.toggle("is-open", open);
+    el.menuButton.setAttribute("aria-expanded", String(open));
+  }
+  function goToCategory(id) {
+    const row = rows.find((r) => r.cat.id === id);
+    setMenu(false);
+    if (!row) return;
+    // Leave room above the row for the bubble itself.
+    const top = row.section.getBoundingClientRect().top + scrollY - Math.max(88, innerHeight * 0.1);
+    window.scrollTo({ top, behavior: motionQuery.matches ? "auto" : "smooth" });
+  }
+  if (rows.length) {
+    el.menu.hidden = false;
+    rows.forEach((row) => {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "menu-item";
+      const name = document.createElement("span");
+      name.className = "menu-name";
+      name.textContent = row.cat.label;
+      const n = document.createElement("span");
+      n.className = "menu-count";
+      n.textContent = pad(row.n);
+      n.setAttribute("aria-hidden", "true");
+      b.append(name, n);
+      b.addEventListener("click", () => goToCategory(row.cat.id));
+      li.append(b);
+      el.menuList.append(li);
+      menu.items.set(row.section, b);
+    });
+    el.menuAll.addEventListener("click", () => {
+      setMenu(false);
+      openIndex();
+    });
+    // Mouse: opens on hover and closes shortly after the pointer leaves.
+    el.menu.addEventListener("pointerenter", (e) => e.pointerType === "mouse" && setMenu(true));
+    el.menu.addEventListener("pointerleave", (e) => {
+      if (e.pointerType !== "mouse") return;
+      clearTimeout(menu.closeTimer);
+      menu.closeTimer = setTimeout(() => setMenu(false), 220);
+    });
+    // Touch and keyboard: the bubble toggles it. (A mouse click keeps it open,
+    // since hovering has already opened it.)
+    el.menuButton.addEventListener("click", (e) => setMenu(fineHover.matches && e.detail > 0 ? true : !menu.open));
+    document.addEventListener("pointerdown", (e) => {
+      if (menu.open && !el.menu.contains(e.target)) setMenu(false);
+    });
+    el.menu.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && menu.open) {
+        e.stopPropagation();
+        setMenu(false);
+        el.menuButton.focus();
+      }
+    });
+    el.menu.addEventListener("focusout", (e) => {
+      if (!el.menu.contains(e.relatedTarget)) setMenu(false);
+    });
+    // The category on screen is marked in the list.
+    if ("IntersectionObserver" in window) {
+      const seen = new IntersectionObserver(
+        (entries) =>
+          entries.forEach((entry) => {
+            const b = menu.items.get(entry.target);
+            if (b) b.classList.toggle("is-current", entry.isIntersecting);
+          }),
+        { rootMargin: "-45% 0px -50% 0px" },
+      );
+      rows.forEach((row) => seen.observe(row.section));
+    }
   }
 
   // -------------------------------------------------------------- index ---
