@@ -42,7 +42,10 @@
     lens: $("lens"),
     lensImg: $("lens-img"),
     index: $("index"),
-    indexGrid: $("index-grid"),
+    indexGroups: $("index-groups"),
+    page: $("page"),
+    collections: $("collections"),
+    cue: $("cue"),
     indexBack: $("index-back"),
     dots: $("dots"),
     panel: $("panel"),
@@ -75,16 +78,20 @@
       return "";
     }
   };
-  const count = pieces.length;
+  const total = pieces.length;
+  const hero = catalog.hero || pieces.map((_, i) => i);
+  const categories = catalog.categories || [];
+  const count = hero.length;
 
   const state = {
     view: "showcase",
-    active: 0,
-    focus: -1,
+    active: 0, // position in the main carousel
+    focus: -1, // piece shown in the piece view
     image: 0,
     holds: new Set(),
     busy: false,
-    fromIndex: false,
+    origin: "hero", // where the piece view was opened from: hero, row or index
+    list: hero, // the pieces the piece view steps through
   };
 
   // ------------------------------------------------------------- images ---
@@ -125,26 +132,28 @@
 
   // ----------------------------------------------------------- carousel ---
 
-  const slides = pieces.map((piece, i) => {
+  // The main carousel shows the featured pieces; slides[k] shows pieces[hero[k]].
+  const slides = hero.map((pieceIndex, k) => {
+    const piece = pieces[pieceIndex];
     const button = document.createElement("button");
     button.type = "button";
     button.className = "slide";
     button.setAttribute("aria-roledescription", "slide");
-    button.setAttribute("aria-label", `${piece.name}, ${i + 1} of ${count}`);
+    button.setAttribute("aria-label", `${piece.name}, ${k + 1} of ${count}`);
     const frame = document.createElement("span");
     frame.className = "slide-frame";
     const img = document.createElement("img");
     img.alt = "";
     img.draggable = false;
     img.decoding = "async";
-    if (i < 3) img.fetchPriority = i === 0 ? "high" : "auto";
+    if (k < 3) img.fetchPriority = k === 0 ? "high" : "auto";
     watchImage(img);
     frame.append(img);
     button.append(frame);
     setImage(img, piece.images[0], "");
     button.addEventListener("click", () => {
       if (drag.suppressClick) return;
-      open(i);
+      open(pieceIndex, { origin: "hero" });
     });
     el.track.append(button);
     return { button, frame, img };
@@ -160,20 +169,22 @@
     el.showcase.querySelector(".meta").hidden = true;
   }
 
-  function offsetOf(i) {
-    let o = (((i - state.active) % count) + count) % count;
+  function offsetOf(k) {
+    let o = (((k - state.active) % count) + count) % count;
     if (o > count / 2) o -= count;
     return o;
   }
 
   const OPACITY = [1, 0.78, 0.22];
 
-  function layout(instant = false) {
+  // `moved` is how many places the carousel just moved; slides that land
+  // anywhere else wrapped round the back and jump there without animating.
+  function layout(instant = false, moved = null) {
     const jumped = [];
-    slides.forEach(({ button }, i) => {
-      const o = offsetOf(i);
+    slides.forEach(({ button }, k) => {
+      const o = offsetOf(k);
       const prev = button.dataset.o === undefined ? o : Number(button.dataset.o);
-      const jump = Math.abs(o - prev) > 1;
+      const jump = moved === null ? Math.abs(o - prev) > 1 : o !== prev - moved;
       const reach = Math.abs(o);
       if (instant || jump) {
         button.classList.add("no-anim");
@@ -197,7 +208,7 @@
 
   function caption(instant = false) {
     if (!count) return;
-    const piece = pieces[state.active];
+    const piece = pieces[hero[state.active]];
     el.counter.textContent = `${pad(state.active + 1)} / ${pad(count)}`;
     const name = el.captionName;
     name.getAnimations().forEach((a) => a.cancel());
@@ -219,9 +230,9 @@
   }
 
   function go(delta, instant = false) {
-    if (count < 2) return;
+    if (count < 2 || !delta) return;
     state.active = (((state.active + delta) % count) + count) % count;
-    layout(instant);
+    layout(instant, delta);
     caption(instant);
     restartTimer();
   }
@@ -254,7 +265,8 @@
     syncTimer();
   }
 
-  // Rotation pauses while the mouse is over the photo on show.
+  // Rotation pauses while the mouse is over the photo on show, and while the
+  // carousel is scrolled out of view.
   el.stage.addEventListener("pointermove", (e) => {
     if (e.pointerType === "mouse") hold("hover", Boolean(e.target.closest(".slide.is-active")));
   });
@@ -270,13 +282,19 @@
   });
   el.stage.addEventListener("focusout", () => hold("keyboard", false));
   document.addEventListener("visibilitychange", syncTimer);
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(([entry]) => hold("away", !entry.isIntersecting), { threshold: 0.35 }).observe(el.stage);
+  }
 
-  // Swipe / drag the carousel.
-  const drag = { id: null, x: 0, y: 0, dx: 0, t: 0, moved: false, suppressClick: false };
+  // Drag (mouse or finger). On release the slides carry on from where the
+  // finger left them with an ease-out, so a flick feels continuous; a long
+  // drag moves more than one place.
+  const drag = { id: null, x: 0, y: 0, dx: 0, moved: false, suppressClick: false, trail: [] };
+  let releaseTimer = 0;
 
   el.stage.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || count < 2 || state.view !== "showcase") return;
-    Object.assign(drag, { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, t: performance.now(), moved: false });
+    Object.assign(drag, { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, moved: false, trail: [{ t: e.timeStamp, x: e.clientX }] });
     hold("drag", true);
   });
   el.stage.addEventListener("pointermove", (e) => {
@@ -287,27 +305,65 @@
       if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
       drag.moved = true;
       el.stage.setPointerCapture(e.pointerId);
+      el.track.classList.remove("is-releasing");
       el.track.classList.add("is-dragging");
     }
+    drag.trail.push({ t: e.timeStamp, x: e.clientX });
+    while (drag.trail.length > 2 && e.timeStamp - drag.trail[0].t > 90) drag.trail.shift();
     drag.dx = dx;
-    el.track.style.setProperty("--drag", `${dx}px`);
+    el.track.style.setProperty("--drag", `${dx.toFixed(1)}px`);
   });
   const endDrag = (e) => {
     if (e.pointerId !== drag.id) return;
     drag.id = null;
     hold("drag", false);
     if (!drag.moved) return;
-    const speed = Math.abs(drag.dx) / Math.max(1, performance.now() - drag.t);
-    const width = slides[0].button.offsetWidth;
+    const a = drag.trail[0];
+    const b = drag.trail[drag.trail.length - 1];
+    const v = b && a && b.t > a.t ? (b.x - a.x) / (b.t - a.t) : 0;
+    const pitch = slides[0].button.offsetWidth * 1.06;
+    const flick = Math.abs(v) > 0.45 && Math.sign(v) === Math.sign(drag.dx);
+    let places = Math.round(Math.abs(drag.dx) / pitch);
+    if (!places && (Math.abs(drag.dx) > pitch * 0.18 || flick)) places = 1;
+    places = Math.min(places, Math.max(1, Math.floor(count / 2)));
+    clearTimeout(releaseTimer);
     el.track.classList.remove("is-dragging");
+    el.track.classList.add("is-releasing");
     el.track.style.setProperty("--drag", "0px");
-    if (Math.abs(drag.dx) > width * 0.18 || speed > 0.6) go(drag.dx < 0 ? 1 : -1);
+    if (places && e.type !== "pointercancel") go(drag.dx < 0 ? places : -places);
     else restartTimer();
+    releaseTimer = setTimeout(() => el.track.classList.remove("is-releasing"), 900);
     drag.suppressClick = true;
     setTimeout(() => (drag.suppressClick = false), 0);
   };
   el.stage.addEventListener("pointerup", endDrag);
   el.stage.addEventListener("pointercancel", endDrag);
+
+  // Trackpad swipes and sideways mouse wheels: one place per gesture. Up and
+  // down scrolling is left to the page.
+  const wheel = { sum: 0, spent: false, quiet: 0 };
+  el.stage.addEventListener(
+    "wheel",
+    (e) => {
+      if (count < 2 || state.view !== "showcase") return;
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      clearTimeout(wheel.quiet);
+      wheel.quiet = setTimeout(() => {
+        wheel.sum = 0;
+        wheel.spent = false;
+      }, 160);
+      if (wheel.spent) return;
+      wheel.sum += e.deltaMode === 1 ? e.deltaX * 16 : e.deltaX;
+      if (Math.abs(wheel.sum) < 30) return;
+      wheel.spent = true;
+      clearTimeout(releaseTimer);
+      el.track.classList.add("is-releasing");
+      go(wheel.sum > 0 ? 1 : -1);
+      releaseTimer = setTimeout(() => el.track.classList.remove("is-releasing"), 900);
+    },
+    { passive: false },
+  );
 
   // -------------------------------------------------------------- focus ---
 
@@ -332,8 +388,9 @@
     el.ref.style.setProperty("--i", "0");
     el.name.style.setProperty("--i", "1");
     renderDots(piece);
-    el.focusCounter.textContent = `${pad(i + 1)} / ${pad(count)}`;
-    el.nav.hidden = count < 2;
+    const list = state.list.includes(i) ? state.list : [i];
+    el.focusCounter.textContent = `${pad(list.indexOf(i) + 1)} / ${pad(list.length)}`;
+    el.nav.hidden = list.length < 2;
     el.focus.classList.remove("is-in");
     void el.focus.offsetWidth;
     el.focus.classList.add("is-in");
@@ -495,8 +552,10 @@
       timer.cancel();
       timer = null;
     }
-    el.showcase.hidden = view === "focus";
-    el.showcase.inert = view !== "showcase";
+    // The page stays where it is under the piece view and the index (so its
+    // scroll position is kept); it just cannot be scrolled or tabbed into.
+    el.page.inert = view !== "showcase";
+    el.root.classList.toggle("is-locked", view !== "showcase");
     el.focus.hidden = view !== "focus";
     el.index.hidden = view !== "index";
     syncTimer();
@@ -519,18 +578,46 @@
     });
   }
 
-  // Open a piece, morphing from the photo that was tapped (carousel or index).
-  function open(i, { push = true, animate = true, from = null, focusBack = true } = {}) {
+  const wrapIn = (n, len) => ((n % len) + len) % len;
+  const onScreen = (node) => {
+    if (!node) return false;
+    const r = node.getBoundingClientRect();
+    return r.width > 0 && r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
+  };
+
+  // A piece can be opened from the main carousel ("hero"), a category
+  // carousel ("row") or the index. That decides which photo it grows out of,
+  // which pieces the arrows step through, and where Back returns to.
+  function frameFor(i, origin) {
+    if (origin === "index") return indexFrames[i] || null;
+    if (origin === "row") return cards[i] ? cards[i].frame : null;
+    const k = hero.indexOf(i);
+    return k >= 0 ? slides[k].frame : null;
+  }
+  function listFor(i, origin) {
+    if (origin === "index") return buildIndex() || indexOrder;
+    if (origin === "row") {
+      const cat = categories.find((c) => c.id === pieces[i].category);
+      return cat ? cat.pieces : [i];
+    }
+    return hero;
+  }
+  // A link straight to a piece opens it from wherever it lives on the page.
+  const homeOf = (i) => (hero.includes(i) ? "hero" : cards[i] ? "row" : "index");
+
+  function open(i, { push = true, animate = true, origin = homeOf(i), focusBack = true } = {}) {
     if (state.busy || !pieces[i]) return;
-    if (state.view === "focus") return step(i - state.focus);
+    if (state.view === "focus") return goTo(i);
     const piece = pieces[i];
     if (push) remember("pushState", { hug: piece.id, pushed: true }, "", `#${piece.id}`);
     endZoom(true);
-    const frame = from || slides[i].frame;
-    state.fromIndex = Boolean(from);
+    state.origin = origin;
+    state.list = listFor(i, origin);
+    const frame = frameFor(i, origin);
     const update = () => {
-      if (state.active !== i) {
-        state.active = i;
+      const k = hero.indexOf(i);
+      if (origin !== "row" && k >= 0 && state.active !== k) {
+        state.active = k;
         layout(true);
         caption(true);
       }
@@ -538,11 +625,11 @@
       showView("focus");
       scheduleOrbit();
       el.media.classList.add("glint");
-      frame.style.viewTransitionName = "";
+      if (frame) frame.style.viewTransitionName = "";
       el.media.style.viewTransitionName = "hero";
       if (focusBack) el.back.focus({ preventScroll: true });
     };
-    if (animate && canMorph()) {
+    if (animate && canMorph() && onScreen(frame)) {
       state.busy = true;
       frame.style.viewTransitionName = "hero";
       el.mediaImg.src = piece.images[0];
@@ -550,14 +637,14 @@
       el.focus.classList.add("via-morph");
       // The large photo must be decoded before the morph captures it, or the
       // first frames show an empty frame.
-      const go = () =>
+      const start = () =>
         transition("open", update).finally(() => {
           el.media.style.viewTransitionName = "";
           el.focus.classList.remove("via-morph");
           state.busy = false;
           runQueued();
         });
-      el.mediaImg.decode().then(go, go);
+      el.mediaImg.decode().then(start, start);
     } else {
       update();
       el.media.style.viewTransitionName = "";
@@ -569,37 +656,53 @@
     }
   }
 
+  // Put a piece's card in view inside its category carousel.
+  function bringIntoRow(i) {
+    const card = cards[i];
+    if (!card) return;
+    const track = card.track;
+    const pitch = cardPitch(track);
+    const k = card.position;
+    const max = track.scrollWidth - track.clientWidth;
+    const left = track.scrollLeft;
+    if (k * pitch < left || k * pitch + pitch > left + track.clientWidth) track.scrollLeft = Math.min(max, Math.max(0, k * pitch));
+    card.li.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+
   function close({ animate = true } = {}) {
     if (state.view !== "focus" || state.busy) return;
     const i = state.focus;
+    const origin = state.origin;
     endZoom(true);
-    const toIndex = state.fromIndex && Boolean(indexFrames[i]);
-    state.fromIndex = false;
-    const frame = toIndex ? indexFrames[i] : slides[i].frame;
+    const frame = frameFor(i, origin);
     const update = () => {
-      state.active = i;
-      layout(true);
-      caption(true);
+      const k = hero.indexOf(i);
+      if (origin !== "row" && k >= 0) {
+        state.active = k;
+        layout(true);
+        caption(true);
+      }
       resetDrag();
-      showView(toIndex ? "index" : "showcase");
+      showView(origin === "index" ? "index" : "showcase");
+      if (origin === "row") bringIntoRow(i);
       el.media.style.viewTransitionName = "";
-      frame.style.viewTransitionName = "hero";
-      if (toIndex) {
-        frame.scrollIntoView({ block: "nearest" });
+      if (frame) frame.style.viewTransitionName = "hero";
+      if (origin === "index") {
+        if (frame) frame.scrollIntoView({ block: "nearest" });
         el.indexBack.focus({ preventScroll: true });
       } else if (el.focus.contains(document.activeElement)) document.activeElement.blur();
     };
     const done = () => {
-      frame.style.viewTransitionName = "";
+      if (frame) frame.style.viewTransitionName = "";
       state.busy = false;
-      if (toIndex) return;
+      if (origin === "index") return;
       // Pauses set before the piece opened may be stale now (pointer moved away).
       state.holds.delete("keyboard");
       state.holds.delete("drag");
       if (!el.stage.matches(":hover")) state.holds.delete("hover");
       restartTimer();
     };
-    if (animate && canMorph()) {
+    if (animate && canMorph() && frame) {
       state.busy = true;
       el.media.style.viewTransitionName = "hero";
       transition("close", update).finally(done);
@@ -623,14 +726,26 @@
       queued = Math.sign(delta);
       return;
     }
-    if (state.view !== "focus" || count < 2 || state.busy || !delta) return;
-    const i = (((state.focus + delta) % count) + count) % count;
+    const list = state.list;
+    if (state.view !== "focus" || list.length < 2 || state.busy || !delta) return;
+    showPiece(list[wrapIn(list.indexOf(state.focus) + delta, list.length)], delta);
+  }
+  // Jump to a given piece (a link, or the browser's back/forward).
+  function goTo(i) {
+    if (i === state.focus) return;
+    if (!state.list.includes(i)) {
+      state.origin = homeOf(i);
+      state.list = listFor(i, state.origin);
+    }
+    showPiece(i, state.list.indexOf(i) >= state.list.indexOf(state.focus) ? 1 : -1);
+  }
+  function showPiece(i, dir) {
     remember("replaceState", { hug: pieces[i].id, pushed: history.state?.pushed }, "", `#${pieces[i].id}`);
     endZoom(true);
     if (!canMorph()) return renderPiece(i);
     state.busy = true;
     el.media.style.viewTransitionName = "hero";
-    transition(delta > 0 ? "next" : "prev", () => renderPiece(i)).finally(() => {
+    transition(dir > 0 ? "next" : "prev", () => renderPiece(i)).finally(() => {
       el.media.style.viewTransitionName = "";
       state.busy = false;
       runQueued();
@@ -661,9 +776,8 @@
       if (state.view === "index" && !(history.state && history.state.hugIndex)) return closeIndex();
       return;
     }
-    if (state.view === "focus") {
-      if (i !== state.focus) step(i - state.focus);
-    } else open(i, { push: false });
+    if (state.view === "focus") goTo(i);
+    else open(i, { push: false });
   }
   window.addEventListener("popstate", route);
 
@@ -673,68 +787,266 @@
     if (b) step(Number(b.dataset.step));
   });
 
+  // --------------------------------------------------------- collections ---
+
+  // One carousel per category below the main one. Each scrolls sideways on
+  // its own: fingers and trackpads natively, a mouse by dragging or with the
+  // arrows. Tapping a piece opens it in the piece view.
+  const cards = []; // by piece index
+  const rowDrag = { suppress: false };
+  const cardPitch = (track) => {
+    const items = track.children;
+    if (items.length > 1) return items[1].offsetLeft - items[0].offsetLeft;
+    return items[0] ? items[0].offsetWidth : 1;
+  };
+
+  categories.forEach((cat) => {
+    const section = document.createElement("section");
+    section.className = "row";
+    section.setAttribute("aria-labelledby", `row-${cat.id}`);
+
+    const head = document.createElement("header");
+    head.className = "row-head";
+    const title = document.createElement("h2");
+    title.className = "row-title";
+    title.id = `row-${cat.id}`;
+    title.textContent = cat.label;
+    const tally = document.createElement("span");
+    tally.className = "row-count";
+    tally.textContent = pad(cat.pieces.length);
+    tally.setAttribute("aria-hidden", "true");
+    const arrows = document.createElement("div");
+    arrows.className = "row-arrows";
+    const arrow = (dir) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "round glass";
+      b.dataset.dir = String(dir);
+      b.setAttribute("aria-label", `${dir < 0 ? "Previous" : "Next"} ${cat.label.toLowerCase()}`);
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("width", "16");
+      svg.setAttribute("height", "16");
+      svg.setAttribute("viewBox", "0 0 24 24");
+      svg.setAttribute("fill", "none");
+      svg.setAttribute("stroke", "currentColor");
+      svg.setAttribute("stroke-width", "1.2");
+      svg.setAttribute("stroke-linecap", "round");
+      svg.setAttribute("stroke-linejoin", "round");
+      svg.setAttribute("aria-hidden", "true");
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", dir < 0 ? "M19 12H5M11 18l-6-6 6-6" : "M5 12h14M13 6l6 6-6 6");
+      svg.append(path);
+      b.append(svg);
+      return b;
+    };
+    const prev = arrow(-1);
+    const next = arrow(1);
+    arrows.append(prev, next);
+    head.append(title, tally, arrows);
+
+    const track = document.createElement("ul");
+    track.className = "row-track";
+    track.setAttribute("aria-label", cat.label);
+    cat.pieces.forEach((i, position) => {
+      const piece = pieces[i];
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "card";
+      const frame = document.createElement("span");
+      frame.className = "card-frame";
+      const img = document.createElement("img");
+      img.alt = "";
+      img.draggable = false;
+      img.decoding = "async";
+      img.loading = "lazy";
+      watchImage(img);
+      img.src = piece.images[0];
+      frame.append(img);
+      const name = document.createElement("span");
+      name.className = "card-name";
+      name.textContent = piece.name;
+      b.append(frame, name);
+      if (piece.ref) {
+        const ref = document.createElement("span");
+        ref.className = "card-ref";
+        setRef(ref, piece.ref);
+        b.append(ref);
+      }
+      b.addEventListener("click", () => {
+        if (rowDrag.suppress) return;
+        open(i, { origin: "row" });
+      });
+      li.append(b);
+      track.append(li);
+      cards[i] = { li, frame, track, position };
+    });
+    section.append(head, track);
+    el.collections.append(section);
+
+    // Arrows: one screenful at a time; dimmed at either end.
+    const smooth = () => (motionQuery.matches ? "auto" : "smooth");
+    const page = (dir) => {
+      const pitch = cardPitch(track);
+      const step = Math.max(pitch, Math.floor(track.clientWidth / pitch) * pitch);
+      track.scrollBy({ left: dir * step, behavior: smooth() });
+    };
+    prev.addEventListener("click", () => page(-1));
+    next.addEventListener("click", () => page(1));
+    let edgeFrame = 0;
+    const edges = () => {
+      edgeFrame = 0;
+      const max = track.scrollWidth - track.clientWidth - 2;
+      prev.disabled = track.scrollLeft <= 2;
+      next.disabled = track.scrollLeft >= max;
+      arrows.hidden = max <= 0;
+    };
+    track.addEventListener("scroll", () => (edgeFrame ||= requestAnimationFrame(edges)), { passive: true });
+    window.addEventListener("resize", () => (edgeFrame ||= requestAnimationFrame(edges)));
+    requestAnimationFrame(edges);
+
+    // Mouse drag: the row follows the pointer, then glides on with the
+    // flick's speed and settles on the nearest piece.
+    let d = null;
+    track.addEventListener("pointerdown", (e) => {
+      if (e.pointerType !== "mouse" || e.button !== 0) return;
+      d = { id: e.pointerId, x: e.clientX, left: track.scrollLeft, moved: false, trail: [{ t: e.timeStamp, x: e.clientX }] };
+    });
+    track.addEventListener("pointermove", (e) => {
+      if (!d || e.pointerId !== d.id) return;
+      const dx = e.clientX - d.x;
+      if (!d.moved) {
+        if (Math.abs(dx) < 6) return;
+        d.moved = true;
+        track.setPointerCapture(e.pointerId);
+        track.classList.add("is-dragging");
+      }
+      d.trail.push({ t: e.timeStamp, x: e.clientX });
+      while (d.trail.length > 2 && e.timeStamp - d.trail[0].t > 90) d.trail.shift();
+      track.scrollLeft = d.left - dx;
+    });
+    const release = (e) => {
+      if (!d || e.pointerId !== d.id) return;
+      const { moved, trail } = d;
+      d = null;
+      if (!moved) return;
+      rowDrag.suppress = true;
+      setTimeout(() => (rowDrag.suppress = false), 0);
+      const a = trail[0];
+      const z = trail[trail.length - 1];
+      const v = z.t > a.t ? (z.x - a.x) / (z.t - a.t) : 0;
+      const pitch = cardPitch(track);
+      const max = track.scrollWidth - track.clientWidth;
+      const target = Math.min(max, Math.max(0, Math.round((track.scrollLeft - v * 220) / pitch) * pitch));
+      track.scrollTo({ left: target, behavior: smooth() });
+      // Snapping comes back once the glide has finished, exactly on a piece.
+      let done = false;
+      const snapBack = () => {
+        if (done) return;
+        done = true;
+        track.classList.remove("is-dragging");
+      };
+      track.addEventListener("scrollend", snapBack, { once: true });
+      setTimeout(snapBack, 700);
+    };
+    track.addEventListener("pointerup", release);
+    track.addEventListener("pointercancel", release);
+  });
+
+  // The hairline under the main carousel scrolls down to the categories.
+  if (categories.length) {
+    el.cue.hidden = false;
+    el.cue.addEventListener("click", () =>
+      el.collections.scrollIntoView({ behavior: motionQuery.matches ? "auto" : "smooth" }),
+    );
+  }
+
   // -------------------------------------------------------------- index ---
 
-  // Every piece at once, for jumping straight to the one a client asks about.
-  let indexFrames = [];
+  // Every piece at once, grouped by category, for jumping straight to the
+  // one a client asks about.
+  const indexFrames = []; // by piece index
+  let indexOrder = [];
   function buildIndex() {
-    if (indexFrames.length) return;
-    el.indexGrid.replaceChildren(
-      ...pieces.map((piece, i) => {
-        const li = document.createElement("li");
-        li.className = "index-item-wrap";
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = "index-item";
-        b.style.setProperty("--i", String(i));
-        const frame = document.createElement("span");
-        frame.className = "index-frame";
-        const img = document.createElement("img");
-        img.alt = "";
-        img.draggable = false;
-        img.decoding = "async";
-        watchImage(img);
-        img.src = piece.images[0];
-        frame.append(img);
-        const name = document.createElement("span");
-        name.className = "index-name";
-        name.textContent = piece.name;
-        b.append(frame, name);
-        if (piece.ref) {
-          const ref = document.createElement("span");
-          ref.className = "index-ref";
-          setRef(ref, piece.ref);
-          b.append(ref);
+    if (indexOrder.length) return indexOrder;
+    const groups = categories.map((c) => ({ label: c.label, items: c.pieces }));
+    const placed = new Set(categories.flatMap((c) => c.pieces));
+    const rest = pieces.map((_, i) => i).filter((i) => !placed.has(i));
+    if (rest.length) groups.push({ label: categories.length ? "More" : "", items: rest });
+    indexOrder = groups.flatMap((g) => g.items);
+    let n = 0;
+    el.indexGroups.replaceChildren(
+      ...groups.map((g) => {
+        const group = document.createElement("section");
+        group.className = "index-group";
+        if (g.label) {
+          const h = document.createElement("h2");
+          h.className = "index-cat";
+          h.textContent = g.label;
+          group.append(h);
         }
-        b.addEventListener("click", () => open(i, { from: frame }));
-        indexFrames.push(frame);
-        li.append(b);
-        return li;
+        const grid = document.createElement("ul");
+        grid.className = "index-grid";
+        g.items.forEach((i) => {
+          const piece = pieces[i];
+          const li = document.createElement("li");
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "index-item";
+          b.style.setProperty("--i", String(Math.min(n++, 14)));
+          const frame = document.createElement("span");
+          frame.className = "index-frame";
+          const img = document.createElement("img");
+          img.alt = "";
+          img.draggable = false;
+          img.decoding = "async";
+          watchImage(img);
+          img.src = piece.images[0];
+          frame.append(img);
+          const name = document.createElement("span");
+          name.className = "index-name";
+          name.textContent = piece.name;
+          b.append(frame, name);
+          if (piece.ref) {
+            const ref = document.createElement("span");
+            ref.className = "index-ref";
+            setRef(ref, piece.ref);
+            b.append(ref);
+          }
+          b.addEventListener("click", () => open(i, { origin: "index" }));
+          indexFrames[i] = frame;
+          li.append(b);
+          grid.append(li);
+        });
+        group.append(grid);
+        return group;
       }),
     );
+    return indexOrder;
   }
   // The carousel photo morphs into its place in the grid, and back.
   function openIndex() {
-    if (state.busy || state.view !== "showcase" || !count) return;
+    if (state.busy || state.view !== "showcase" || !total) return;
     // Its own history entry, so the browser's back button closes it.
     remember("pushState", { hugIndex: true, pushed: true }, "", location.pathname + location.search);
     buildIndex();
-    const from = slides[state.active].frame;
-    const to = indexFrames[state.active];
-    indexFrames.forEach((f) => f.parentElement.classList.toggle("is-hero", f === to));
+    const from = count ? slides[state.active].frame : null;
+    const to = count ? indexFrames[hero[state.active]] : null;
+    indexFrames.forEach((f) => f && f.parentElement.classList.toggle("is-hero", f === to));
+    const morph = canMorph() && onScreen(from) && to;
     const update = () => {
       showView("index");
       el.index.scrollTop = 0;
-      to.scrollIntoView({ block: "nearest" });
+      if (to) to.scrollIntoView({ block: "nearest" });
       el.index.classList.remove("is-in", "is-fading");
       void el.index.offsetWidth;
       el.index.classList.add("is-in");
-      if (!canMorph()) el.index.classList.add("is-fading");
-      from.style.viewTransitionName = "";
-      to.style.viewTransitionName = "hero";
+      if (!morph) el.index.classList.add("is-fading");
+      if (from) from.style.viewTransitionName = "";
+      if (morph) to.style.viewTransitionName = "hero";
       el.indexBack.focus({ preventScroll: true });
     };
-    if (!canMorph()) return update();
+    if (!morph) return update();
     state.busy = true;
     from.style.viewTransitionName = "hero";
     transition("index", update).finally(() => {
@@ -748,20 +1060,20 @@
   }
   function closeIndex() {
     if (state.view !== "index" || state.busy) return;
-    const from = indexFrames[state.active];
-    const to = slides[state.active].frame;
+    const from = count ? indexFrames[hero[state.active]] : null;
+    const to = count ? slides[state.active].frame : null;
     const update = () => {
       showView("showcase");
-      from.style.viewTransitionName = "";
-      to.style.viewTransitionName = "hero";
+      if (from) from.style.viewTransitionName = "";
+      if (to) to.style.viewTransitionName = "hero";
     };
     const done = () => {
-      to.style.viewTransitionName = "";
+      if (to) to.style.viewTransitionName = "";
       state.busy = false;
       if (!el.stage.matches(":hover")) state.holds.delete("hover");
       restartTimer();
     };
-    if (!canMorph() || !from) {
+    if (!canMorph() || !from || !onScreen(from) || !onScreen(to)) {
       update();
       return done();
     }
@@ -867,7 +1179,11 @@
   const fingers = new Map();
   const pinch = { d0: 1, mx: 0, my: 0 };
   const peeks = [$("peek-prev"), $("peek-next")];
-  const wrap = (i) => ((i % count) + count) % count;
+  // Neighbours in the list the piece view is stepping through.
+  const neighbour = (dir) => {
+    const list = state.list;
+    return list[wrapIn(list.indexOf(state.focus) + dir, list.length)];
+  };
 
   // Instantly put the photo, its frame and the panel back to rest.
   function resetDrag() {
@@ -927,13 +1243,13 @@
   }
 
   function startSwipe() {
-    peeks[0].src = pieces[wrap(state.focus - 1)].images[0];
-    peeks[1].src = pieces[wrap(state.focus + 1)].images[0];
+    peeks[0].src = pieces[neighbour(-1)].images[0];
+    peeks[1].src = pieces[neighbour(1)].images[0];
     el.media.classList.add("is-swiping", "is-dragging");
   }
   // Finish the slide the finger started, then swap in the new piece.
   function commitSwipe(dir) {
-    const i = wrap(state.focus + dir);
+    const i = neighbour(dir);
     const width = touch.rect.width;
     state.busy = true;
     endZoom(true);
@@ -1016,7 +1332,7 @@
     if (touch.mode === "wait") {
       if (Math.hypot(touch.dx, touch.dy) < 10) return;
       clearTimeout(touch.timer);
-      if (Math.abs(touch.dx) > Math.abs(touch.dy) && count > 1) {
+      if (Math.abs(touch.dx) > Math.abs(touch.dy) && state.list.length > 1) {
         touch.mode = "swipe";
         startSwipe();
       } else if (touch.dy > 0) {
@@ -1185,10 +1501,13 @@
     const key = e.key;
     if (key === "f" || key === "F") return toggleFullscreen();
     if (state.view === "showcase") {
+      // Arrow keys belong to the category carousels while focus is in one.
+      if (el.collections.contains(document.activeElement)) return;
       if (key === "ArrowRight" || key === "ArrowLeft") {
         go(key === "ArrowRight" ? 1 : -1);
         if (el.stage.contains(document.activeElement)) slides[state.active].button.focus({ preventScroll: true });
-      } else if (key === "Enter" && (document.activeElement === document.body || !document.activeElement)) open(state.active);
+      } else if (key === "Enter" && count && (document.activeElement === document.body || !document.activeElement))
+        open(hero[state.active], { origin: "hero" });
       else if (key === "g" || key === "G") openIndex();
       else return;
     } else if (state.view === "index") {
@@ -1232,13 +1551,17 @@
   document.addEventListener("visibilitychange", stayAwake);
   window.addEventListener("pointerdown", stayAwake, { passive: true });
 
-  // Return to the carousel when the piece view is left alone.
+  // Left alone, the lookbook returns to the main carousel: the piece view or
+  // index closes, and a page scrolled down to the categories glides back up.
   let idleTimer = 0;
   function bumpIdle() {
     clearTimeout(idleTimer);
-    if (settings.idleMs && state.view !== "showcase") idleTimer = setTimeout(back, settings.idleMs);
+    if (!settings.idleMs) return;
+    if (state.view !== "showcase") idleTimer = setTimeout(back, settings.idleMs);
+    else if (window.scrollY > 40)
+      idleTimer = setTimeout(() => window.scrollTo({ top: 0, behavior: motionQuery.matches ? "auto" : "smooth" }), settings.idleMs);
   }
-  ["pointerdown", "pointermove", "keydown", "wheel"].forEach((t) =>
+  ["pointerdown", "pointermove", "keydown", "wheel", "scroll"].forEach((t) =>
     window.addEventListener(t, bumpIdle, { passive: true }),
   );
 
@@ -1353,11 +1676,6 @@
   stayAwake();
   const startId = hashId();
   const startAt = pieces.findIndex((p) => p.id === startId);
-  if (startAt >= 0) {
-    state.active = startAt;
-    layout(true);
-    caption(true);
-    open(startAt, { push: false, animate: false, focusBack: false });
-  }
+  if (startAt >= 0) open(startAt, { push: false, animate: false, focusBack: false });
   restartTimer();
 })();

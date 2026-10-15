@@ -34,13 +34,28 @@ Everything shown comes from one file: **`site/products.js`**. Edit it, save, rel
 ```js
 {
   name: "Coral Drop Earrings",
-  ref: "Nº 008",
+  ref: "Nº 034",
+  category: "Earrings",
   images: ["assets/products/coral-drop.webp"],
   alt: "Two baroque pearl drops on silver hooks",
 },
 ```
 
 Photo paths start with `assets/products/` (no `site/`); a bare file name like `"coral-drop.webp"` also works. Order in the list is the order on screen.
+
+### Categories and the main carousel
+
+Below the main carousel, the page scrolls down to one carousel per category. The categories and their order are set near the top of `products.js`:
+
+```js
+categories: ["Rings", "Earrings", "Strings", "Pendants", "Chokers", "Bracelets", "Misc"],
+```
+
+- Rename, reorder, add or remove categories in that list. A category with no pieces is not shown.
+- Each piece names its category with `category: "Rings",` (spelled as in the list).
+- `featured: true,` puts a piece in the main carousel at the top as well. If no piece is featured, the main carousel shows them all.
+
+The current pieces are placeholders: the same few renders, mirrored or cropped, under made-up names.
 
 ### Remove or pause a piece
 
@@ -144,7 +159,8 @@ The tablet picks up the update the next time it opens the lookbook online.
 
 | Action | Mouse / keyboard | Touch |
 | --- | --- | --- |
-| Next / previous piece | ← → keys | Swipe the carousel or the large photo |
+| Next / previous piece | ← → keys, a sideways trackpad swipe, or drag | Swipe the carousel or the large photo |
+| Browse a category | Scroll down; drag a row, swipe it on a trackpad, or use its arrows | Scroll down; swipe a row |
 | Open a piece | Click a photo, or Enter | Tap a photo |
 | Inspect closely | Hover over the large photo | Touch and hold the photo; a loupe appears above your finger |
 | Show a detail | Click a badge with a dot | Tap a badge with a dot |
@@ -153,7 +169,7 @@ The tablet picks up the update the next time it opens the lookbook online.
 | Back to carousel | Back button, Esc | Back button, or pull the photo down |
 | Full screen | F, or double-click the logo | Add to Home Screen (opens without browser bars) |
 
-The carousel pauses while the pointer is over the photo on show. On pieces with a moving light, the light starts circling after a moment untouched. The screen stays awake while the page is open (where the browser allows it), and the piece view returns to the carousel after 90 seconds untouched. Every piece has its own link (`…/#tidal-strand`).
+In the piece view, the arrows and swipes step through the pieces of the carousel it was opened from (the main one, a category, or the index), and Back returns there. The main carousel pauses while the pointer is over the photo on show, or while it is scrolled out of view. On pieces with a moving light, the light starts circling after a moment untouched. The screen stays awake while the page is open (where the browser allows it), and after 90 seconds untouched the piece view closes and the page glides back to the top. Every piece has its own link (`…/#tidal-strand`).
 
 ### At the event
 

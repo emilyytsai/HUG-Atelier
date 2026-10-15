@@ -24,6 +24,7 @@
 <body class="font-sans is-booting">
   <div class="aura" aria-hidden="true"></div>
 
+  <div id="page" class="page">
   <main id="showcase" class="showcase">
     <header class="flex justify-center pt-[clamp(1.5rem,6vh,4.5rem)] pb-[clamp(1.75rem,5vh,3.5rem)]">
       <h1 id="logo" class="logo">
@@ -43,7 +44,11 @@
         <button id="counter" type="button" class="counter" aria-label="All pieces" aria-haspopup="true"></button>
       </div>
     </footer>
+    <button id="cue" type="button" class="cue" aria-label="Categories" hidden><span></span></button>
   </main>
+
+  <div id="collections" class="collections"></div>
+  </div>
 
   <section id="focus" class="focus" hidden aria-labelledby="piece-name">
     <figure id="media" class="media m-0">
@@ -85,7 +90,7 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
       Back
     </button>
-    <ul id="index-grid" class="index-grid"></ul>
+    <div id="index-groups" class="index-groups"></div>
   </section>
 
   <noscript><p class="fixed inset-0 grid place-items-center text-xs tracking-[0.3em] uppercase text-taupe">Turn on JavaScript to view the collection.</p></noscript>

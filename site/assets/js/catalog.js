@@ -5,7 +5,7 @@
   "use strict";
 
   const DEFAULT_BADGES = ["Luxury-Grade Silver", "Organic Shape", "Freshwater Pearls"];
-  const PIECE_KEYS = ["name", "images", "image", "alt", "ref", "badges", "hidden", "id", "orbit"];
+  const PIECE_KEYS = ["name", "images", "image", "alt", "ref", "badges", "hidden", "id", "orbit", "category", "featured"];
   const SETTING_KEYS = ["autoRotateSeconds", "idleReturnSeconds", "zoom"];
   const PHOTO = /^assets\/products\/(?:[^/]+\/)*[^/]+\.(?:webp|avif|jpe?g|png)$/i;
 
@@ -126,7 +126,7 @@
       return PHOTO.test(s) ? s : null;
     };
 
-    if (source) checkKeys(source, ["settings", "defaultBadges", "pieces"], "products.js");
+    if (source) checkKeys(source, ["settings", "defaultBadges", "categories", "pieces"], "products.js");
     const s = (source && source.settings) || {};
     checkKeys(s, SETTING_KEYS, "settings");
     const settings = Object.freeze({
@@ -135,7 +135,22 @@
       zoom: clampNum(s.zoom, 1.2, 4, 2, "zoom"),
     });
 
+    // Categories: one carousel each, in this order, below the main carousel.
+    const categories = [];
+    const catByKey = new Map();
+    const rawCats = source && source.categories;
+    if (rawCats !== undefined && !Array.isArray(rawCats)) note('products.js: categories should be a list like ["Rings", "Earrings"].');
+    (Array.isArray(rawCats) ? rawCats : []).forEach((c) => {
+      const label = cleanText(c, 40, "A category name");
+      const key = slugify(label);
+      if (!label || catByKey.has(key)) return;
+      const cat = { id: key, label, pieces: [] };
+      catByKey.set(key, cat);
+      categories.push(cat);
+    });
+
     const pieces = [];
+    const featured = [];
     const seen = new Set();
     const fallback = cleanBadges(source && source.defaultBadges, "defaultBadges") || cleanBadges(DEFAULT_BADGES, "");
     if (source && !Array.isArray(source.pieces)) note("products.js: pieces should be a list: pieces: [ { ... }, { ... }, ]", true);
@@ -184,6 +199,19 @@
           else note(`${where}: the orbit files ${JSON.stringify(files)} are not usable photo paths. Ignored.`);
         }
       }
+      let category = null;
+      if (p.category !== undefined) {
+        const label = cleanText(p.category, 40);
+        category = catByKey.get(slugify(label)) || null;
+        if (!category) {
+          const names = categories.map((c) => c.label).join(", ");
+          note(`${where}: category "${label}" is not in the categories list${names ? ` (${names})` : ""}. It shows in the main carousel only if featured.`);
+        }
+      }
+      if (p.featured !== undefined && typeof p.featured !== "boolean") note(`${where}: featured should be true or false, without quotes.`);
+      if (p.featured === true || p.featured === "true") featured.push(pieces.length);
+      if (category) category.pieces.push(pieces.length);
+
       pieces.push(
         Object.freeze({
           id,
@@ -193,11 +221,26 @@
           images: Object.freeze(images.slice(0, 12)),
           badges: Object.freeze(cleanBadges(p.badges, where) ?? fallback),
           orbit,
+          category: category ? category.id : null,
         }),
       );
     });
 
-    return { settings, pieces: Object.freeze(pieces), notes };
+    // The main carousel shows the featured pieces, or every piece if none is.
+    const hero = featured.length ? featured : pieces.map((_, i) => i);
+    categories.forEach((c) => {
+      if (!c.pieces.length) note(`Category "${c.label}" has no pieces yet, so its carousel is not shown.`);
+      Object.freeze(c.pieces);
+      Object.freeze(c);
+    });
+
+    return {
+      settings,
+      pieces: Object.freeze(pieces),
+      hero: Object.freeze(hero),
+      categories: Object.freeze(categories.filter((c) => c.pieces.length)),
+      notes,
+    };
   }
 
   root.HUG_readCatalog = readCatalog;

@@ -73,10 +73,17 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
+  html,
+  body {
+    overscroll-behavior-x: none;
+  }
+  /* While the piece view or the index is open, the page underneath stays put. */
+  html.is-locked {
+    overflow: hidden;
+  }
   body {
     min-height: 100svh;
-    overflow: hidden;
-    overscroll-behavior: none;
+    overflow-x: clip;
     background: var(--color-cream);
     -webkit-tap-highlight-color: transparent;
     user-select: none;
@@ -191,10 +198,13 @@
 
   /* ------------------------------------------------------------ showcase */
 
-  .showcase {
-    position: fixed;
-    inset: 0;
+  .page {
+    position: relative;
     z-index: 1;
+  }
+  .showcase {
+    position: relative;
+    height: 100svh;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
@@ -265,6 +275,21 @@
   .slide.no-anim,
   .track.is-dragging .slide {
     transition: none;
+  }
+  /* After a drag, trackpad swipe or wheel: carry on from where the slides are,
+     quick at first and settling softly, so the motion feels continuous. */
+  .track.is-releasing .slide {
+    transition:
+      transform 780ms var(--ease-silk),
+      opacity 780ms var(--ease-silk);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .stage {
+      cursor: grab;
+    }
+    .track.is-dragging {
+      cursor: grabbing;
+    }
   }
   .slide-frame {
     position: absolute;
@@ -820,6 +845,190 @@
     }
   }
 
+  /* ------------------------------------------------------ scroll cue */
+
+  /* A hairline under the main carousel with light running down it: the page
+     continues below. Tapping it glides down to the categories. */
+  .cue {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    translate: -50% 0;
+    width: 2.75rem;
+    height: min(2.5rem, 4.5vh);
+    display: grid;
+    justify-items: center;
+    padding: 0;
+  }
+  .cue span {
+    position: relative;
+    width: 1px;
+    height: 100%;
+    overflow: hidden;
+    background: rgb(26 26 26 / 0.12);
+  }
+  .cue span::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: -60%;
+    width: 1px;
+    height: 60%;
+    background: linear-gradient(transparent, var(--color-ink));
+    animation: cue-run 2600ms var(--ease-glide) infinite;
+  }
+
+  /* ----------------------------------------------------- categories */
+
+  .collections {
+    --gutter: max(clamp(1.25rem, 5vw, 5rem), env(safe-area-inset-left));
+    position: relative;
+    display: grid;
+    gap: clamp(3.5rem, 9vh, 7rem);
+    padding-block: clamp(3rem, 9vh, 6.5rem) clamp(4rem, 12vh, 8rem);
+  }
+  .collections:empty {
+    display: none;
+  }
+  .row {
+    display: grid;
+    gap: clamp(0.25rem, 1vh, 0.75rem);
+    min-width: 0;
+  }
+  .row-head {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+    padding-inline: var(--gutter);
+  }
+  .row-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(1.75rem, 3.2vw, 2.9rem);
+    line-height: 1;
+    letter-spacing: -0.005em;
+  }
+  .row-count {
+    align-self: flex-end;
+    padding-bottom: 0.35em;
+    font-size: 0.625rem;
+    letter-spacing: 0.42em;
+    color: var(--color-taupe);
+    font-variant-numeric: tabular-nums;
+  }
+  .row-arrows {
+    margin-left: auto;
+    display: flex;
+    gap: 0.5rem;
+  }
+  .row-arrows .round:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+  @media (hover: none) {
+    .row-arrows {
+      display: none;
+    }
+  }
+  .row-track {
+    position: relative;
+    display: flex;
+    gap: clamp(0.9rem, 2vw, 2rem);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--gutter);
+    padding: 1.25rem var(--gutter) 1.5rem;
+    list-style: none;
+    margin: 0;
+    scrollbar-width: none;
+  }
+  .row-track::-webkit-scrollbar {
+    display: none;
+  }
+  .row-track > li {
+    flex: 0 0 clamp(12.5rem, 21vw, 19rem);
+    scroll-snap-align: start;
+
+    @media (max-width: 639px) {
+      flex-basis: 64vw;
+    }
+  }
+  .row-track > li:last-child {
+    scroll-snap-align: end;
+  }
+  .row-track.is-dragging {
+    scroll-snap-type: none;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .row-track {
+      cursor: grab;
+    }
+    .row-track.is-dragging {
+      cursor: grabbing;
+    }
+  }
+  .card {
+    display: grid;
+    gap: 0.9rem;
+    width: 100%;
+    text-align: left;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+  }
+  .card-frame {
+    position: relative;
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    border-radius: 2px;
+    background: var(--color-linen);
+    box-shadow: 0 22px 44px -34px rgb(26 26 26 / 0.18);
+  }
+  .card-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition:
+      transform 800ms var(--ease-silk),
+      opacity 900ms var(--ease-silk);
+  }
+  .card-frame.is-loaded img {
+    opacity: 1;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .card:hover .card-frame img {
+      transform: scale(1.08);
+    }
+  }
+  .card-name {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(1rem, 1.3vw, 1.2rem);
+    line-height: 1.15;
+  }
+  .card-ref {
+    margin-top: -0.45rem;
+    font-size: 0.5625rem;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--color-taupe);
+  }
+
+  /* Each category rises gently into place as it scrolls into view (where the
+     browser supports scroll-linked animation; elsewhere it is simply there). */
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .row {
+        animation: rise linear both;
+        animation-timeline: view();
+        animation-range: entry 0% entry 55%;
+      }
+    }
+  }
+
   /* ------------------------------------------------------------- index */
 
   .counter {
@@ -848,19 +1057,26 @@
   .index .back {
     position: fixed;
   }
-  /* Centred rows, so a short last row sits in the middle. */
-  .index-grid {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: clamp(1.5rem, 3vw, 3rem) clamp(0.75rem, 2vw, 2rem);
+  .index-groups {
+    display: grid;
+    gap: clamp(2.5rem, 6vh, 4.5rem);
     max-width: 82rem;
-    min-height: calc(100svh - 7.5rem);
-    align-content: center;
     margin: 0 auto;
   }
-  .index-grid > li {
-    flex: 0 1 min(clamp(9.5rem, 21vw, 16rem), calc((100svh - 17rem) / 2 * 0.8));
+  .index-group {
+    display: grid;
+    gap: clamp(1rem, 2.5vh, 1.75rem);
+  }
+  .index-cat {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(1.35rem, 2vw, 1.85rem);
+    line-height: 1.1;
+  }
+  .index-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(40%, 10.5rem), 1fr));
+    gap: clamp(1.25rem, 2.5vw, 2.25rem) clamp(0.75rem, 1.6vw, 1.5rem);
   }
   .index-item {
     display: grid;
@@ -1063,6 +1279,14 @@
     transform: scale(1);
   }
 }
+@keyframes cue-run {
+  from {
+    top: -60%;
+  }
+  to {
+    top: 100%;
+  }
+}
 @keyframes glint {
   0% {
     background-position: 130% 0;
@@ -1188,7 +1412,8 @@ html[data-vt="prev"]::view-transition-new(root) {
 /* ------------------------------------------------------------ reduced motion */
 
 @media (prefers-reduced-motion: reduce) {
-  .aura {
+  .aura,
+  .cue span::after {
     animation: none;
   }
   .slide.is-active .slide-frame img {
