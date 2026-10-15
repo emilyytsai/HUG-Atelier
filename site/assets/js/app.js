@@ -80,6 +80,17 @@
 
   // ------------------------------------------------------------- images ---
 
+  // "Nº 001": the wide caption tracking would float the º away from the N,
+  // so the sign gets its own tight spacing.
+  function setRef(node, text) {
+    const m = /^(N[º°o]\.?)\s*(.*)$/.exec(text || "");
+    if (!m) return void (node.textContent = text || "");
+    const sign = document.createElement("span");
+    sign.className = "ref-n";
+    sign.textContent = m[1];
+    node.replaceChildren(sign, m[2]);
+  }
+
   function setImage(img, src, alt) {
     const frame = img.parentElement;
     frame.classList.remove("is-missing");
@@ -305,7 +316,7 @@
     setImage(el.mediaImg, piece.images[imageIndex], piece.alt);
     el.ambientImg.src = piece.images[0];
     setTone(piece.images[imageIndex]);
-    el.ref.textContent = piece.ref;
+    setRef(el.ref, piece.ref);
     el.ref.hidden = !piece.ref;
     el.name.textContent = piece.name;
     el.badges.replaceChildren(...piece.badges.map(renderBadge));
@@ -682,7 +693,7 @@
         if (piece.ref) {
           const ref = document.createElement("span");
           ref.className = "index-ref";
-          ref.textContent = piece.ref;
+          setRef(ref, piece.ref);
           b.append(ref);
         }
         b.addEventListener("click", () => open(i, { from: frame }));
