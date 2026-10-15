@@ -79,6 +79,16 @@ List more than one photo. The first is the main photo; the others appear as dots
 images: ["assets/products/tidal-strand.webp", "assets/products/tidal-strand-detail.webp"],
 ```
 
+### Moving light (optional)
+
+A piece can show its light slowly circling it while nobody touches the photo, so the pearls' lustre moves (Halo Ring does this now). It needs a set of photos of the piece from the same spot, with only the light moved a little between each, saved as `name-00.webp`, `name-01.webp` and so on:
+
+```js
+orbit: { frames: 24, files: "assets/products/orbit/halo-ring-##.webp" },
+```
+
+`##` stands for the frame number. Any touch or hover on the photo returns to the still photo straight away.
+
 ### Settings
 
 At the top of `products.js`:
@@ -138,11 +148,12 @@ The tablet picks up the update the next time it opens the lookbook online.
 | Open a piece | Click a photo, or Enter | Tap a photo |
 | Inspect closely | Hover over the large photo | Touch and hold the photo; a loupe appears above your finger |
 | Show a detail | Click a badge with a dot | Tap a badge with a dot |
+| Look closer | | Pinch the large photo |
 | See every piece | Click the counter (01 / 07), or G | Tap the counter |
 | Back to carousel | Back button, Esc | Back button, or pull the photo down |
 | Full screen | F, or double-click the logo | Add to Home Screen (opens without browser bars) |
 
-The carousel pauses while the pointer is over it. The screen stays awake while the page is open (where the browser allows it), and the piece view returns to the carousel after 90 seconds untouched. Every piece has its own link (`…/#tidal-strand`).
+The carousel pauses while the pointer is over the photo on show. On pieces with a moving light, the light starts circling after a moment untouched. The screen stays awake while the page is open (where the browser allows it), and the piece view returns to the carousel after 90 seconds untouched. Every piece has its own link (`…/#tidal-strand`).
 
 ### At the event
 

@@ -527,6 +527,7 @@
       }
       renderPiece(i);
       showView("focus");
+      scheduleOrbit();
       el.media.classList.add("glint");
       frame.style.viewTransitionName = "";
       el.media.style.viewTransitionName = "hero";

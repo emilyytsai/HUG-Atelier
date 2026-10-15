@@ -29,6 +29,10 @@
  *            at = [across, down], from 0 to 1. To find the numbers, open the
  *            page from your computer, open the piece, and Option-click (Mac)
  *            or Alt-click (Windows) the spot. The line is copied for you.
+ *   orbit    Optional. Frames of the main photo with the light moving
+ *            around the piece; while nobody touches the photo, the light
+ *            slowly circles it. { frames: 24, files: "assets/products/orbit/name-##.webp" }
+ *            (## is the frame number: 00, 01, ...).
  *   hidden   Optional. true hides the piece without deleting it.
  *   id       Optional. Name used in the page link (#tidal-strand). Made from
  *            the name if left out.
@@ -71,6 +75,7 @@ window.HUG_ATELIER = {
       ref: "Nº 003",
       images: ["assets/products/halo-ring.webp"],
       alt: "A single pearl set on a slim silver band",
+      orbit: { frames: 24, files: "assets/products/orbit/halo-ring-##.webp" },
     },
     {
       name: "Moon Drop Earrings",
