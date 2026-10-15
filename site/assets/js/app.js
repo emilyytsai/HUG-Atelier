@@ -59,6 +59,15 @@
   const fineHover = matchMedia("(hover: hover) and (pointer: fine)");
   const canMorph = () => typeof document.startViewTransition === "function" && !motionQuery.matches;
   const pad = (n) => String(n).padStart(2, "0");
+  // Some embedded previews refuse history changes; the lookbook then simply
+  // works without browser-back support instead of failing.
+  const remember = (method, ...args) => {
+    try {
+      history[method](...args);
+    } catch {
+      /* not allowed here */
+    }
+  };
   const hashId = () => {
     try {
       return decodeURIComponent(location.hash.slice(1));
@@ -515,7 +524,7 @@
     if (state.busy || !pieces[i]) return;
     if (state.view === "focus") return step(i - state.focus);
     const piece = pieces[i];
-    if (push) history.pushState({ hug: piece.id, pushed: true }, "", `#${piece.id}`);
+    if (push) remember("pushState", { hug: piece.id, pushed: true }, "", `#${piece.id}`);
     endZoom(true);
     const frame = from || slides[i].frame;
     state.fromIndex = Boolean(from);
@@ -616,7 +625,7 @@
     }
     if (state.view !== "focus" || count < 2 || state.busy || !delta) return;
     const i = (((state.focus + delta) % count) + count) % count;
-    history.replaceState({ hug: pieces[i].id, pushed: history.state?.pushed }, "", `#${pieces[i].id}`);
+    remember("replaceState", { hug: pieces[i].id, pushed: history.state?.pushed }, "", `#${pieces[i].id}`);
     endZoom(true);
     if (!canMorph()) return renderPiece(i);
     state.busy = true;
@@ -633,7 +642,7 @@
     if (state.view !== "focus") return;
     if (history.state && history.state.hug && history.state.pushed) history.back();
     else {
-      history.replaceState(null, "", location.pathname + location.search);
+      remember("replaceState", null, "", location.pathname + location.search);
       close();
     }
   }
@@ -708,7 +717,7 @@
   function openIndex() {
     if (state.busy || state.view !== "showcase" || !count) return;
     // Its own history entry, so the browser's back button closes it.
-    history.pushState({ hugIndex: true, pushed: true }, "", location.pathname + location.search);
+    remember("pushState", { hugIndex: true, pushed: true }, "", location.pathname + location.search);
     buildIndex();
     const from = slides[state.active].frame;
     const to = indexFrames[state.active];
@@ -931,7 +940,7 @@
     el.media.classList.remove("is-dragging");
     el.media.style.setProperty("--dx", `${-dir * (width + 2)}px`);
     el.focus.style.setProperty("--fade", "0.6");
-    history.replaceState({ hug: pieces[i].id, pushed: history.state?.pushed }, "", `#${pieces[i].id}`);
+    remember("replaceState", { hug: pieces[i].id, pushed: history.state?.pushed }, "", `#${pieces[i].id}`);
     setTimeout(() => {
       setImage(el.mediaImg, pieces[i].images[0], pieces[i].alt);
       const swap = () => {
