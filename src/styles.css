@@ -144,10 +144,10 @@
       inset 0 1px 0 rgb(255 255 255 / 0.22),
       0 14px 34px -20px rgb(0 0 0 / 0.5);
   }
-  .focus[data-tone="dark"] .dot::before {
+  .focus[data-tone="dark"] .dot-mark {
     background: rgb(251 249 246 / 0.35);
   }
-  .focus[data-tone="dark"] .dot[aria-current="true"]::before {
+  .focus[data-tone="dark"] .dot-fill {
     background: var(--color-cream);
   }
   .glass::before {
@@ -614,6 +614,10 @@
     border-radius: 999px;
     display: grid;
     place-items: center;
+    transition: width 500ms var(--ease-silk);
+  }
+  .dot[aria-current="true"] {
+    width: 2.25rem;
   }
   /* Small to look at, 44 px to tap. */
   .dot::after {
@@ -621,19 +625,31 @@
     position: absolute;
     inset: -0.5rem -0.6rem;
   }
-  .dot::before {
-    content: "";
+  /* The current photo's dot opens into a short bar that fills while the
+     photo is on show, like the hairline under the main carousel. */
+  .dot-mark {
+    position: relative;
     width: 0.375rem;
     height: 0.375rem;
     border-radius: 999px;
+    overflow: hidden;
     background: rgb(26 26 26 / 0.25);
     transition:
-      background 400ms var(--ease-silk),
-      scale 400ms var(--ease-silk);
+      width 500ms var(--ease-silk),
+      background 400ms var(--ease-silk);
   }
-  .dot[aria-current="true"]::before {
+  .dot[aria-current="true"] .dot-mark {
+    width: 1.25rem;
+  }
+  .dot-fill {
+    position: absolute;
+    inset: 0;
     background: var(--color-ink);
-    scale: 1.35;
+    transform-origin: left;
+    transform: scaleX(0);
+  }
+  .dot[aria-current="true"] .dot-fill {
+    transform: scaleX(1);
   }
 
   .panel {

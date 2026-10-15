@@ -12,7 +12,7 @@
   const catalog = window.HUG_readCatalog
     ? window.HUG_readCatalog(window.HUG_ATELIER, window.HUG_ATELIER_ERROR)
     : {
-        settings: Object.freeze({ rotateMs: 4000, idleMs: 90000, zoom: 2 }),
+        settings: Object.freeze({ rotateMs: 4000, photoMs: 4000, idleMs: 90000, zoom: 2 }),
         pieces: Object.freeze([]),
         notes: ["assets/js/catalog.js did not load. Check that it is in the assets/js folder."],
       };
@@ -401,6 +401,7 @@
     el.focus.classList.add("is-in");
     preload(piece.images);
     scheduleOrbit();
+    restartCycle();
   }
 
   // Badges with a spot on the photo become buttons that glide the zoom there.
@@ -458,6 +459,7 @@
     const tags = el.badges.querySelectorAll(".badge");
     tags.forEach((b) => b.matches("button") && b.setAttribute("aria-pressed", String(b === tags[k])));
     if (!zoom.raf) zoom.raf = requestAnimationFrame(tick);
+    syncCycle();
   }
 
   // Photo coordinates (0-1 of the whole photo) to frame coordinates. The frame
@@ -485,6 +487,12 @@
         b.type = "button";
         b.className = "dot";
         b.setAttribute("aria-label", `Photo ${k + 1} of ${piece.images.length}`);
+        const mark = document.createElement("span");
+        mark.className = "dot-mark";
+        const fill = document.createElement("span");
+        fill.className = "dot-fill";
+        mark.append(fill);
+        b.append(mark);
         b.setAttribute("aria-current", String(k === state.image));
         b.addEventListener("click", (e) => {
           e.stopPropagation();
@@ -528,20 +536,23 @@
     img.src = src;
   }
 
-  function showImage(k) {
+  // Change photo with a soft cross-fade, or at once when a swipe has
+  // already slid it into place (slid).
+  function showImage(k, slid = false) {
     const piece = pieces[state.focus];
     if (!piece || k === state.image) return;
     state.image = k;
     if (zoom.badge >= 0) endZoom();
     scheduleOrbit();
     [...el.dots.children].forEach((d, n) => d.setAttribute("aria-current", String(n === k)));
+    restartCycle();
     const img = el.mediaImg;
     img.getAnimations().forEach((a) => a.cancel());
     const swap = () => {
       setImage(img, piece.images[k], piece.alt);
       setTone(piece.images[k]);
     };
-    if (motionQuery.matches) return swap();
+    if (slid || motionQuery.matches) return swap();
     img.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 260, easing: "ease-in", fill: "forwards" }).onfinish = () => {
       swap();
       const reveal = () => img.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 700, easing: "cubic-bezier(.22,1,.36,1)", fill: "forwards" });
@@ -549,9 +560,54 @@
     };
   }
 
+  // ------------------------------------------------------- photo cycle ---
+
+  // With more than one photo, the piece view moves through them on its own.
+  // The current photo's dot opens into a short bar that fills while the photo
+  // is on show, and holds while the photo is zoomed or touched.
+  const cycle = { anim: null, retry: 0 };
+  function stopCycle() {
+    clearTimeout(cycle.retry);
+    if (cycle.anim) cycle.anim.cancel();
+    cycle.anim = null;
+  }
+  function restartCycle() {
+    stopCycle();
+    const piece = pieces[state.focus];
+    const fill = el.dots.children[state.image]?.querySelector(".dot-fill");
+    if (!piece || piece.images.length < 2 || !settings.photoMs || state.view !== "focus" || !fill) return;
+    // A main photo with a moving light stays for one full turn of the light.
+    const turn = state.image === 0 && piece.orbit && !motionQuery.matches ? 1600 + (piece.orbit.length / ORBIT_FPS) * 1000 : 0;
+    cycle.anim = fill.animate([{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }], {
+      duration: Math.max(settings.photoMs, turn),
+      easing: "linear",
+      fill: "forwards",
+    });
+    cycle.anim.onfinish = nextPhoto;
+    syncCycle();
+  }
+  function nextPhoto() {
+    if (state.view !== "focus") return;
+    if (state.busy || fingers.size) {
+      cycle.retry = setTimeout(nextPhoto, 500);
+      return;
+    }
+    showImage(wrapIn(state.image + 1, pieces[state.focus].images.length));
+  }
+  function syncCycle() {
+    const a = cycle.anim;
+    if (!a || a.playState === "finished") return;
+    if (zoom.on || fingers.size || document.hidden) a.pause();
+    else if (a.playState === "paused") a.play();
+  }
+  document.addEventListener("visibilitychange", () => syncCycle());
+
   function showView(view) {
     state.view = view;
-    if (view !== "focus") stopOrbit();
+    if (view !== "focus") {
+      stopOrbit();
+      stopCycle();
+    }
     // A paused timer would resume mid-morph on the way back; start fresh instead.
     if (view !== "showcase" && timer) {
       timer.cancel();
@@ -630,6 +686,7 @@
       renderPiece(i);
       showView("focus");
       scheduleOrbit();
+      restartCycle();
       el.media.classList.add("glint");
       if (frame) frame.style.viewTransitionName = "";
       el.media.style.viewTransitionName = "hero";
@@ -950,7 +1007,8 @@
       now -= shift;
       const p = row.pitch;
       target = Math.min(Math.floor((now + row.loop) / p) * p, Math.max(Math.ceil((now - row.loop) / p) * p, target - shift));
-      if (motionQuery.matches) return jump(target);
+      // Already there (or no motion wanted): no transition would run.
+      if (motionQuery.matches || Math.abs(target - now) < 0.5) return jump(target);
       if (shift) {
         jump(now);
         void strip.offsetWidth; // let the jump land before the glide starts
@@ -1336,6 +1394,7 @@
     zoom.on = true;
     el.media.classList.add("is-zoomed");
     if (!zoom.raf) zoom.raf = requestAnimationFrame(tick);
+    syncCycle();
   }
   function endZoom(now = false, keepCrop = false) {
     clearTimeout(zoom.delay);
@@ -1354,6 +1413,7 @@
       cancelAnimationFrame(zoom.raf);
       zoom.raf = 0;
     }
+    syncCycle();
   }
 
   // Zoom starts only once the mouse really moves over the photo, so opening a
@@ -1395,9 +1455,9 @@
     if (e.animationName === "glint") el.media.classList.remove("glint");
   });
 
-  // Touch: hold for the loupe, swipe sideways through the pieces, pull down
-  // to go back, pinch to look closer. One finger is decided by its first
-  // movement; a second finger always means pinch.
+  // Touch: hold for the loupe, swipe sideways through the photos and on to
+  // the next piece, pull down to go back, pinch to look closer. One finger is
+  // decided by its first movement; a second finger always means pinch.
   const touch = { id: null, x0: 0, y0: 0, dx: 0, dy: 0, mode: "", timer: 0, rect: null, trail: [] };
   const fingers = new Map();
   const pinch = { d0: 1, mx: 0, my: 0 };
@@ -1465,19 +1525,51 @@
     return { vx: (b.x - a.x) / dt, vy: (b.y - a.y) / dt };
   }
 
+  // Where a swipe leads: the piece's next or previous photo, and past its
+  // last or first photo, the next or previous piece (or round to the other
+  // end of the photos when there is no other piece).
+  function swipeTo(dir) {
+    const piece = pieces[state.focus];
+    const n = piece.images.length;
+    const k = state.image + dir;
+    if ((k >= 0 && k < n) || state.list.length < 2) {
+      const image = wrapIn(k, n);
+      return { image, src: piece.images[image] };
+    }
+    const i = neighbour(dir);
+    return { piece: i, src: pieces[i].images[0] };
+  }
+  const canSwipe = () => state.list.length > 1 || pieces[state.focus].images.length > 1;
+
   function startSwipe() {
-    peeks[0].src = pieces[neighbour(-1)].images[0];
-    peeks[1].src = pieces[neighbour(1)].images[0];
+    touch.to = [swipeTo(-1), swipeTo(1)];
+    peeks[0].src = touch.to[0].src;
+    peeks[1].src = touch.to[1].src;
     el.media.classList.add("is-swiping", "is-dragging");
   }
-  // Finish the slide the finger started, then swap in the new piece.
+  // Finish the slide the finger started, then swap in the new photo or piece.
   function commitSwipe(dir) {
-    const i = neighbour(dir);
+    const to = touch.to[dir > 0 ? 1 : 0];
     const width = touch.rect.width;
     state.busy = true;
     endZoom(true);
     el.media.classList.remove("is-dragging");
     el.media.style.setProperty("--dx", `${-dir * (width + 2)}px`);
+    if (to.piece === undefined) {
+      setTimeout(() => {
+        const piece = pieces[state.focus];
+        setImage(el.mediaImg, piece.images[to.image], piece.alt);
+        const swap = () => {
+          showImage(to.image, true);
+          resetDrag();
+          state.busy = false;
+          runQueued();
+        };
+        el.mediaImg.decode().then(swap, swap);
+      }, 470);
+      return;
+    }
+    const i = to.piece;
     el.focus.style.setProperty("--fade", "0.6");
     remember("replaceState", { hug: pieces[i].id, pushed: history.state?.pushed }, "", `#${pieces[i].id}`);
     setTimeout(() => {
@@ -1519,6 +1611,7 @@
   el.media.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse" || e.target.closest(".dots")) return;
     fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    syncCycle();
     el.media.setPointerCapture(e.pointerId);
     if (state.busy) return;
     if (fingers.size === 2 && touch.mode !== "done") return startPinch();
@@ -1555,7 +1648,7 @@
     if (touch.mode === "wait") {
       if (Math.hypot(touch.dx, touch.dy) < 10) return;
       clearTimeout(touch.timer);
-      if (Math.abs(touch.dx) > Math.abs(touch.dy) && state.list.length > 1) {
+      if (Math.abs(touch.dx) > Math.abs(touch.dy) && canSwipe()) {
         touch.mode = "swipe";
         startSwipe();
       } else if (touch.dy > 0) {
@@ -1570,7 +1663,9 @@
     if (touch.mode === "lens") moveLens(e.clientX, e.clientY);
     else if (touch.mode === "swipe") {
       el.media.style.setProperty("--dx", `${touch.dx.toFixed(1)}px`);
-      el.focus.style.setProperty("--fade", Math.min(0.6, (Math.abs(touch.dx) / width) * 0.9).toFixed(3));
+      // The name and badges fade only when the swipe leads to another piece.
+      const toPiece = touch.to[touch.dx < 0 ? 1 : 0].piece !== undefined;
+      el.focus.style.setProperty("--fade", toPiece ? Math.min(0.6, (Math.abs(touch.dx) / width) * 0.9).toFixed(3) : "0");
     } else if (touch.mode === "pull") {
       const d = Math.max(0, touch.dy);
       const p = Math.min(1, d / 360);
@@ -1583,6 +1678,7 @@
   const touchEnd = (e) => {
     if (!fingers.has(e.pointerId)) return;
     fingers.delete(e.pointerId);
+    syncCycle();
     const cancelled = e.type === "pointercancel";
     if (touch.mode === "pinch" || touch.mode === "done") {
       // Spring back once every finger has lifted.
@@ -1613,6 +1709,37 @@
   };
   el.media.addEventListener("pointerup", touchEnd);
   el.media.addEventListener("pointercancel", touchEnd);
+
+  // Trackpad: a sideways swipe over the photo slides on to the next photo
+  // (or piece) just as a finger would, one per swipe.
+  const photoWheel = { sum: 0, spent: false, quiet: 0 };
+  el.media.addEventListener(
+    "wheel",
+    (e) => {
+      if (state.view !== "focus" || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      clearTimeout(photoWheel.quiet);
+      photoWheel.quiet = setTimeout(() => {
+        photoWheel.sum = 0;
+        photoWheel.spent = false;
+      }, 160);
+      if (photoWheel.spent || state.busy || fingers.size || !canSwipe()) return;
+      photoWheel.sum += e.deltaMode === 1 ? e.deltaX * 16 : e.deltaX;
+      if (Math.abs(photoWheel.sum) < 30) return;
+      photoWheel.spent = true;
+      const dir = photoWheel.sum > 0 ? 1 : -1;
+      const to = swipeTo(dir);
+      const peek = peeks[dir > 0 ? 1 : 0];
+      touch.to = dir > 0 ? [null, to] : [to, null];
+      touch.rect = el.media.getBoundingClientRect();
+      state.busy = true;
+      peek.src = to.src;
+      el.media.classList.add("is-swiping");
+      const slide = () => commitSwipe(dir);
+      peek.decode().then(slide, slide);
+    },
+    { passive: false },
+  );
 
   // -------------------------------------------------------------- orbit ---
 

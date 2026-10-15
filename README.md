@@ -88,10 +88,10 @@ badges: [
 
 ### Add detail photos
 
-List more than one photo. The first is the main photo; the others appear as dots under it in the piece view.
+List more than one photo, up to 12. The first is the main photo, shown in the carousels. In the piece view the photos move on by themselves (every 4 seconds; see `photoSeconds` below), and they can be swiped, or picked with the dots under the photo.
 
 ```js
-images: ["assets/products/tidal-strand.webp", "assets/products/tidal-strand-detail.webp"],
+images: ["assets/products/tidal-strand.webp", "assets/products/tidal-strand-detail.webp", "assets/products/tidal-strand-close.webp"],
 ```
 
 ### Moving light (optional)
@@ -111,6 +111,7 @@ At the top of `products.js`:
 | Setting | Default | What it does |
 | --- | --- | --- |
 | `autoRotateSeconds` | `4` | Time each piece stays in the carousel |
+| `photoSeconds` | `4` | Time each photo shows in the piece view before the next. `0` stays on the main photo |
 | `idleReturnSeconds` | `90` | Return to the carousel after this long untouched. `0` turns it off |
 | `zoom` | `2` | How close the hover zoom gets in the piece view |
 
@@ -159,7 +160,8 @@ The tablet picks up the update the next time it opens the lookbook online.
 
 | Action | Mouse / keyboard | Touch |
 | --- | --- | --- |
-| Next / previous piece | ← → keys, a sideways trackpad swipe, or drag | Swipe the carousel or the large photo |
+| Next / previous piece | ← → keys, a sideways trackpad swipe, or drag | Swipe the carousel; in the piece view, the arrows, or swipe the large photo past its last photo |
+| More photos of a piece | Wait, click the dots, or swipe sideways on a trackpad over the photo | Wait, swipe the large photo, or tap the dots |
 | Browse a category | Scroll down, or pick it from the Categories bubble (top right); drag a row, swipe it on a trackpad, or use its arrows | Scroll down, or tap the bubble (top right); swipe a row |
 | Open a piece | Click a photo, or Enter | Tap a photo |
 | Inspect closely | Hover over the large photo | Touch and hold the photo; a loupe appears above your finger |
@@ -169,7 +171,7 @@ The tablet picks up the update the next time it opens the lookbook online.
 | Back to carousel | Back button, Esc | Back button, or pull the photo down |
 | Full screen | F, or double-click the logo | Add to Home Screen (opens without browser bars) |
 
-In the piece view, the arrows and swipes step through the pieces of the carousel it was opened from (the main one, a category, or the index), and Back returns there. The main carousel pauses while the pointer is over the photo on show, or while it is scrolled out of view. On pieces with a moving light, the light starts circling after a moment untouched. The screen stays awake while the page is open (where the browser allows it), and after 90 seconds untouched the piece view closes and the page glides back to the top. Every piece has its own link (`…/#tidal-strand`).
+In the piece view, the arrows and swipes step through the pieces of the carousel it was opened from (the main one, a category, or the index), and Back returns there. A swipe on the large photo goes through the piece's photos first, then on to the next piece. The bar in the current dot shows how long until the next photo; it holds while the photo is zoomed or touched. The main carousel pauses while the pointer is over the photo on show, or while it is scrolled out of view. On pieces with a moving light, the light starts circling after a moment untouched. The screen stays awake while the page is open (where the browser allows it), and after 90 seconds untouched the piece view closes and the page glides back to the top. Every piece has its own link (`…/#tidal-strand`).
 
 ### At the event
 

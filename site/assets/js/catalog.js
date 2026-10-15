@@ -6,7 +6,7 @@
 
   const DEFAULT_BADGES = ["Luxury-Grade Silver", "Organic Shape", "Freshwater Pearls"];
   const PIECE_KEYS = ["name", "images", "image", "alt", "ref", "badges", "hidden", "id", "orbit", "category", "featured"];
-  const SETTING_KEYS = ["autoRotateSeconds", "idleReturnSeconds", "zoom"];
+  const SETTING_KEYS = ["autoRotateSeconds", "photoSeconds", "idleReturnSeconds", "zoom"];
   const PHOTO = /^assets\/products\/(?:[^/]+\/)*[^/]+\.(?:webp|avif|jpe?g|png)$/i;
 
   // "Did you mean": typos in field names would otherwise be ignored silently.
@@ -131,6 +131,8 @@
     checkKeys(s, SETTING_KEYS, "settings");
     const settings = Object.freeze({
       rotateMs: clampNum(s.autoRotateSeconds, 2, 60, 4, "autoRotateSeconds") * 1000,
+      // 0 keeps the piece view on the main photo; otherwise 2 to 60 seconds.
+      photoMs: [0, "0"].includes(s.photoSeconds) ? 0 : clampNum(s.photoSeconds, 2, 60, 4, "photoSeconds") * 1000,
       idleMs: clampNum(s.idleReturnSeconds, 0, 3600, 90, "idleReturnSeconds") * 1000,
       zoom: clampNum(s.zoom, 1.2, 4, 2, "zoom"),
     });

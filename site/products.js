@@ -11,7 +11,8 @@
  * Photos          Put them in the  assets/products/  folder next to this file.
  *                 Name them in lowercase with dashes, e.g. coral-drop.webp.
  *                 Portrait 4:5 works best (for example 1600 x 2000 px).
- *                 The first photo is the main one; add more for detail views.
+ *                 The first photo is the main one. Add more and the piece
+ *                 view moves through them on its own; they can be swiped too.
  *
  * Every line inside a block ends with a comma, and so does every block  },
  * the last one too. Text goes between straight quotes "like this", not
@@ -20,7 +21,8 @@
  * Fields
  *   name     Required. Shown as the title. Under 30 characters reads best.
  *   images   Required. One or more photos: ["assets/products/name.webp"].
- *            A bare file name like "name.webp" also works.
+ *            A bare file name like "name.webp" also works. The first is the
+ *            main photo, shown in the carousels; up to 12 in all.
  *   alt      Optional. Short description of the photo for screen readers.
  *   ref      Optional. Small reference above the title: "Nº 014", or just
  *            the number 14, which shows as Nº 014.
@@ -50,6 +52,7 @@
 window.HUG_ATELIER = {
   settings: {
     autoRotateSeconds: 4,   // time each piece stays in the main carousel (2 to 60)
+    photoSeconds: 4,        // time each photo shows in the piece view before the next (2 to 60, 0 = stay on the first)
     idleReturnSeconds: 90,  // back to the top after this long untouched (0 = never)
     zoom: 2,                // how close the hover zoom gets in the piece view (1.2 to 4)
   },
@@ -67,7 +70,7 @@ window.HUG_ATELIER = {
       ref: "Nº 001",
       category: "Strings",
       featured: true,
-      images: ["assets/products/tidal-strand.webp", "assets/products/tidal-strand-detail.webp"],
+      images: ["assets/products/tidal-strand.webp", "assets/products/tidal-strand-detail.webp", "assets/products/tidal-strand-close.webp"],
       alt: "A long strand of baroque freshwater pearls with a silver clasp, laid in a loose loop",
       badges: [
         { label: "Luxury-Grade Silver", at: [0.54, 0.095] },
@@ -80,7 +83,7 @@ window.HUG_ATELIER = {
       ref: "Nº 002",
       category: "Pendants",
       featured: true,
-      images: ["assets/products/selene-pendant.webp"],
+      images: ["assets/products/selene-pendant.webp", "assets/products/selene-pendant-close.webp", "assets/products/selene-pendant-mirror.webp"],
       alt: "A flat baroque pearl on a fine silver chain, on dark slate",
     },
     {
@@ -88,7 +91,7 @@ window.HUG_ATELIER = {
       ref: "Nº 003",
       category: "Rings",
       featured: true,
-      images: ["assets/products/halo-ring.webp"],
+      images: ["assets/products/halo-ring.webp", "assets/products/halo-ring-close.webp"],
       alt: "A single pearl set on a slim silver band",
       orbit: { frames: 24, files: "assets/products/orbit/halo-ring-##.webp" },
     },
@@ -97,7 +100,7 @@ window.HUG_ATELIER = {
       ref: "Nº 004",
       category: "Earrings",
       featured: true,
-      images: ["assets/products/moon-drop.webp"],
+      images: ["assets/products/moon-drop.webp", "assets/products/moon-drop-close.webp", "assets/products/moon-drop-mirror.webp"],
       alt: "A pair of long baroque pearl drops on silver hooks",
     },
     {
@@ -105,7 +108,7 @@ window.HUG_ATELIER = {
       ref: "Nº 005",
       category: "Earrings",
       featured: true,
-      images: ["assets/products/petal-studs.webp"],
+      images: ["assets/products/petal-studs.webp", "assets/products/petal-studs-close.webp"],
       alt: "Two studs, each a cluster of small pearls on a silver base",
       badges: ["Luxury-Grade Silver", "Organic Shape", "Freshwater Pearls", "Cluster Setting"],
     },
@@ -114,7 +117,7 @@ window.HUG_ATELIER = {
       ref: "Nº 006",
       category: "Bracelets",
       featured: true,
-      images: ["assets/products/shoreline-bracelet.webp"],
+      images: ["assets/products/shoreline-bracelet.webp", "assets/products/shoreline-bracelet-close.webp", "assets/products/shoreline-bracelet-mirror.webp"],
       alt: "A bracelet of pearls with small silver spacer beads",
     },
     {
@@ -122,7 +125,7 @@ window.HUG_ATELIER = {
       ref: "Nº 007",
       category: "Misc",
       featured: true,
-      images: ["assets/products/undertow-lariat.webp"],
+      images: ["assets/products/undertow-lariat.webp", "assets/products/undertow-lariat-close.webp"],
       alt: "A silver Y-necklace with stationed pearls and a long pearl drop",
     },
     {
