@@ -344,27 +344,50 @@
   el.stage.addEventListener("pointerup", endDrag);
   el.stage.addEventListener("pointercancel", endDrag);
 
-  // Trackpad swipes and sideways mouse wheels: one place per gesture. Up and
+  // A trackpad swipe arrives as a stream of wheel events, and keeps coming for
+  // a second or so after the fingers lift while the swipe coasts. A new swipe
+  // is told apart by a pause, a change of direction, or the stream speeding
+  // up again after it had slowed, so a quick second swipe is never lost in
+  // the first one's coasting. Returns the distance so far in this swipe, and
+  // whether this event began it.
+  function swipeReader() {
+    const g = { sum: 0, peak: 0, dip: 0, quiet: 0, ended: true };
+    return (e) => {
+      const dx = e.deltaMode === 1 ? e.deltaX * 16 : e.deltaX;
+      const a = Math.abs(dx);
+      clearTimeout(g.quiet);
+      g.quiet = setTimeout(() => (g.ended = true), 160);
+      const turned = g.sum !== 0 && a > 3 && Math.sign(dx) !== Math.sign(g.sum);
+      const again = g.dip < g.peak * 0.4 && a > g.dip * 2.5 && a > 6;
+      const fresh = g.ended || turned || again;
+      if (fresh) {
+        g.ended = false;
+        g.sum = 0;
+        g.peak = g.dip = a;
+      } else if (a >= g.peak) g.peak = g.dip = a;
+      else g.dip = Math.min(g.dip, a);
+      g.sum += dx;
+      return { sum: g.sum, fresh };
+    };
+  }
+
+  // Trackpad swipes and sideways mouse wheels: one place per swipe. Up and
   // down scrolling is left to the page.
-  const wheel = { sum: 0, spent: false, quiet: 0 };
+  const readWheel = swipeReader();
+  let wheelSpent = false;
   el.stage.addEventListener(
     "wheel",
     (e) => {
       if (count < 2 || state.view !== "showcase") return;
       if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
       e.preventDefault();
-      clearTimeout(wheel.quiet);
-      wheel.quiet = setTimeout(() => {
-        wheel.sum = 0;
-        wheel.spent = false;
-      }, 160);
-      if (wheel.spent) return;
-      wheel.sum += e.deltaMode === 1 ? e.deltaX * 16 : e.deltaX;
-      if (Math.abs(wheel.sum) < 30) return;
-      wheel.spent = true;
+      const { sum, fresh } = readWheel(e);
+      if (fresh) wheelSpent = false;
+      if (wheelSpent || Math.abs(sum) < 30) return;
+      wheelSpent = true;
       clearTimeout(releaseTimer);
       el.track.classList.add("is-releasing");
-      go(wheel.sum > 0 ? 1 : -1);
+      go(sum > 0 ? 1 : -1);
       releaseTimer = setTimeout(() => el.track.classList.remove("is-releasing"), 900);
     },
     { passive: false },
@@ -1080,23 +1103,20 @@
     // Trackpad swipes and sideways wheels, as on the main carousel: a swipe
     // glides on a piece, a longer one a piece more for each card's width it
     // covers. Up and down still scroll the page.
-    const wheel = { sum: 0, steps: 0, quiet: 0 };
+    const readWheel = swipeReader();
+    let wheelSteps = 0;
     track.addEventListener(
       "wheel",
       (e) => {
         if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
         e.preventDefault();
-        clearTimeout(wheel.quiet);
-        wheel.quiet = setTimeout(() => {
-          wheel.sum = 0;
-          wheel.steps = 0;
-        }, 160);
-        wheel.sum += e.deltaMode === 1 ? e.deltaX * 16 : e.deltaX;
-        const size = Math.abs(wheel.sum);
+        const { sum, fresh } = readWheel(e);
+        if (fresh) wheelSteps = 0;
+        const size = Math.abs(sum);
         const steps = size < 30 ? 0 : Math.min(row.n, 1 + Math.floor((size - 30) / (row.pitch * 0.8)));
-        if (steps <= wheel.steps) return;
-        nudge(Math.sign(wheel.sum) * (steps - wheel.steps));
-        wheel.steps = steps;
+        if (steps <= wheelSteps) return;
+        nudge(Math.sign(sum) * (steps - wheelSteps));
+        wheelSteps = steps;
       },
       { passive: false },
     );
@@ -1722,22 +1742,18 @@
 
   // Trackpad: a sideways swipe over the photo slides on to the next photo
   // (or piece) just as a finger would, one per swipe.
-  const photoWheel = { sum: 0, spent: false, quiet: 0 };
+  const readPhotoWheel = swipeReader();
+  let photoWheelSpent = false;
   el.media.addEventListener(
     "wheel",
     (e) => {
       if (state.view !== "focus" || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
       e.preventDefault();
-      clearTimeout(photoWheel.quiet);
-      photoWheel.quiet = setTimeout(() => {
-        photoWheel.sum = 0;
-        photoWheel.spent = false;
-      }, 160);
-      if (photoWheel.spent || state.busy || fingers.size || !canSwipe()) return;
-      photoWheel.sum += e.deltaMode === 1 ? e.deltaX * 16 : e.deltaX;
-      if (Math.abs(photoWheel.sum) < 30) return;
-      photoWheel.spent = true;
-      const dir = photoWheel.sum > 0 ? 1 : -1;
+      const { sum, fresh } = readPhotoWheel(e);
+      if (fresh) photoWheelSpent = false;
+      if (photoWheelSpent || state.busy || fingers.size || !canSwipe() || Math.abs(sum) < 30) return;
+      photoWheelSpent = true;
+      const dir = sum > 0 ? 1 : -1;
       const to = swipeTo(dir);
       const peek = peeks[dir > 0 ? 1 : 0];
       touch.to = dir > 0 ? [null, to] : [to, null];
