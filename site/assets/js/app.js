@@ -209,10 +209,71 @@
     }
   }
 
+  // The logo sits over the photo on show, so it takes the colour that reads
+  // best against the patch of photo behind it: the patch is sampled from the
+  // photo itself (where the slide comes to rest, as the photo is cropped to
+  // fill it), and any part of the logo past the photo's edge counts as the
+  // cream page. The logo takes ink or cream, whichever stands out more
+  // against that patch (by the usual contrast ratio).
+  const INK_LUMINANCE = 0.0103; // #1A1A1A
+  const CREAM_LUMINANCE = 0.947; // #FBF9F6
+  const linear = (v) => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+  const tonePatch = document.createElement("canvas");
+  tonePatch.width = 16;
+  tonePatch.height = 8;
+  const toneCtx = tonePatch.getContext("2d", { willReadFrequently: true });
+  function logoTone() {
+    if (!count) return;
+    const { button, img } = slides[state.active];
+    const logo = el.logo.getBoundingClientRect();
+    const stage = el.stage.getBoundingClientRect();
+    const w = button.offsetWidth;
+    const h = button.offsetHeight;
+    const left = stage.left + (stage.width - w) / 2;
+    const top = stage.top + (stage.height - h) / 2;
+    const x0 = Math.max(logo.left, left);
+    const y0 = Math.max(logo.top, top);
+    const x1 = Math.min(logo.right, left + w);
+    const y1 = Math.min(logo.bottom, top + h);
+    const area = logo.width * logo.height;
+    const cover = x1 > x0 && y1 > y0 && area ? ((x1 - x0) * (y1 - y0)) / area : 0;
+    let photo = 0.8; // the linen shown while a photo loads
+    if (cover && img.complete && img.naturalWidth) {
+      const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+      const ox = (w - img.naturalWidth * scale) / 2;
+      const oy = (h - img.naturalHeight * scale) / 2;
+      try {
+        toneCtx.clearRect(0, 0, 16, 8);
+        toneCtx.drawImage(img, (x0 - left - ox) / scale, (y0 - top - oy) / scale, (x1 - x0) / scale, (y1 - y0) / scale, 0, 0, 16, 8);
+        const data = toneCtx.getImageData(0, 0, 16, 8).data;
+        let sum = 0;
+        let seen = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const a = data[i + 3] / 255;
+          sum += a * (0.2126 * linear(data[i] / 255) + 0.7152 * linear(data[i + 1] / 255) + 0.0722 * linear(data[i + 2] / 255));
+          seen += a;
+        }
+        // A photo that is loaded but not yet decoded draws nothing; look
+        // again once it is ready.
+        if (seen < 1) img.decode().then(logoTone, () => {});
+        else photo = sum / seen;
+      } catch {
+        /* photo not readable; keep the linen guess */
+      }
+    }
+    const behind = cover * photo + (1 - cover) * CREAM_LUMINANCE;
+    const onInk = (behind + 0.05) / (INK_LUMINANCE + 0.05);
+    const onCream = (CREAM_LUMINANCE + 0.05) / (behind + 0.05);
+    el.logo.classList.toggle("is-light", onCream > onInk);
+  }
+  slides.forEach(({ img }, k) => img.addEventListener("load", () => k === state.active && logoTone()));
+  window.addEventListener("resize", () => requestAnimationFrame(logoTone));
+
   function caption(instant = false) {
     if (!count) return;
     const piece = pieces[hero[state.active]];
     el.counter.textContent = `${pad(state.active + 1)} / ${pad(count)}`;
+    logoTone();
     const name = el.captionName;
     name.getAnimations().forEach((a) => a.cancel());
     if (instant || motionQuery.matches) {

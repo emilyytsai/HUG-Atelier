@@ -6,7 +6,7 @@
  *
  * Bump VERSION after large changes to clear old copies on every device.
  */
-const VERSION = "v21";
+const VERSION = "v22";
 const SHELL = `hug-shell-${VERSION}`;
 const MEDIA = `hug-media-${VERSION}`;
 
@@ -23,6 +23,7 @@ const CORE = [
   "assets/fonts/jost-latin.woff2",
   "assets/fonts/jost-latin-ext.woff2",
   "assets/icons/icon.svg",
+  "assets/icons/drop-lens.svg",
   "manifest.webmanifest",
 ];
 

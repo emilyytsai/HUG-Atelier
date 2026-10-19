@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+  <!-- The map for the water-drop lens behind the logo (#logo-lens in
+       index.html). Red says how far to look sideways, green how far up or
+       down; mid grey looks straight through. Across the drop the look
+       points back towards the centre, which magnifies; the pull is
+       strongest in the middle and fades smoothly all the way to the edge
+       (as 1 - (1 - r²)², r from centre to edge), so the drop has no rim and
+       melts into the photo. -->
+  <defs>
+    <linearGradient id="across">
+      <stop offset="0" stop-color="#000" />
+      <stop offset="1" stop-color="#f00" />
+    </linearGradient>
+    <linearGradient id="down" x2="0" y2="1">
+      <stop offset="0" stop-color="#000" />
+      <stop offset="1" stop-color="#0f0" />
+    </linearGradient>
+    <radialGradient id="fade">
+      <stop offset="0" stop-color="#808000" stop-opacity="0" />
+      <stop offset="0.2" stop-color="#808000" stop-opacity="0.078" />
+      <stop offset="0.3" stop-color="#808000" stop-opacity="0.172" />
+      <stop offset="0.4" stop-color="#808000" stop-opacity="0.294" />
+      <stop offset="0.5" stop-color="#808000" stop-opacity="0.438" />
+      <stop offset="0.6" stop-color="#808000" stop-opacity="0.590" />
+      <stop offset="0.7" stop-color="#808000" stop-opacity="0.740" />
+      <stop offset="0.8" stop-color="#808000" stop-opacity="0.870" />
+      <stop offset="0.9" stop-color="#808000" stop-opacity="0.964" />
+      <stop offset="1" stop-color="#808000" />
+    </radialGradient>
+  </defs>
+  <rect width="100" height="100" fill="url(#across)" />
+  <rect width="100" height="100" fill="url(#down)" style="mix-blend-mode: screen" />
+  <rect width="100" height="100" fill="url(#fade)" />
+</svg>
