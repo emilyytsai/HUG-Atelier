@@ -1,8 +1,11 @@
 /*
  * HUG Atelier: the collection
  * ---------------------------
- * This is the only file you edit to change what the lookbook shows.
- * Save it, then reload the page.
+ * Real names, specs and confirmed prices (see per-piece comments) for the
+ * 40 named Catalog 1 pieces. Photos are still the placeholder studio
+ * renders, reused across same-category pieces, until real photography
+ * replaces them -- see import/README.md for the open to-dos (watermarks,
+ * resolution, and the 3 pieces -- E8121, E8156, P8156 -- still unnamed).
  *
  * Add a piece     Copy one { ... }, block (from { to },) and paste it where
  *                 you want it. Order here = order on screen, in the main
@@ -17,298 +20,380 @@
  * Every line inside a block ends with a comma, and so does every block  },
  * the last one too. Text goes between straight quotes "like this", not
  * curly ones.
- *
- * Fields
- *   name     Required. Shown as the title. Under 30 characters reads best.
- *   images   Required. One or more photos: ["assets/products/name.webp"].
- *            A bare file name like "name.webp" also works. The first is the
- *            main photo, shown in the carousels; up to 12 in all.
- *   alt      Optional. Short description of the photo for screen readers.
- *   ref      Optional. Small reference above the title: "Nº 014", or just
- *            the number 14, which shows as Nº 014.
- *   badges   Optional. Replaces the default badges for this piece only.
- *            A badge can point at a spot on the main photo:
- *            { label: "Luxury-Grade Silver", at: [0.5, 0.08] }
- *            at = [across, down], from 0 to 1. To find the numbers, open the
- *            page from your computer, open the piece, and Option-click (Mac)
- *            or Alt-click (Windows) the spot. The line is copied for you.
- *   orbit    Optional. Frames of the main photo with the light moving
- *            around the piece; while nobody touches the photo, the light
- *            slowly circles it. { frames: 24, files: "assets/products/orbit/name-##.webp" }
- *            (## is the frame number: 00, 01, ...).
- *   category Optional. Which category carousel it appears in; must match a
- *            name in the categories list below, e.g. "Rings".
- *   featured Optional. true puts it in the main carousel at the top. If no
- *            piece is featured, the main carousel shows every piece.
- *   hidden   Optional. true hides the piece without deleting it.
- *   id       Optional. Name used in the page link (#tidal-strand). Made from
- *            the name if left out.
- *
- * Checking your work: open index.html from your computer (or add ?check to
- * the address). If something is wrong, a note on screen says what and where.
- * For line numbers, use  npm run serve  or  npm run check-products.
  */
 
 window.HUG_ATELIER = {
   settings: {
-    autoRotateSeconds: 4,   // time each piece stays in the main carousel (2 to 60)
-    photoSeconds: 4,        // time each photo shows in the piece view before the next (2 to 60, 0 = stay on the first)
-    idleReturnSeconds: 90,  // back to the top after this long untouched (0 = never)
-    zoom: 2,                // how close the hover zoom gets in the piece view (1.2 to 4)
+    autoRotateSeconds: 4,
+    photoSeconds: 4,
+    idleReturnSeconds: 90,
+    zoom: 2,
   },
 
-  // Badges shown on every piece unless the piece lists its own.
   defaultBadges: ["Luxury-Grade Silver", "Organic Shape", "Freshwater Pearls"],
 
-  // One carousel per category, in this order, below the main carousel.
   categories: ["Rings", "Earrings", "Strings", "Pendants", "Chokers", "Bracelets", "Misc"],
 
-  // Placeholder pieces: the photos are stand-in renders, repeated on purpose.
   pieces: [
     {
-      name: "Tidal Strand",
-      ref: "Nº 001",
-      category: "Strings",
-      featured: true,
-      images: ["assets/products/tidal-strand.webp", "assets/products/tidal-strand-detail.webp", "assets/products/tidal-strand-close.webp"],
-      alt: "A long strand of baroque freshwater pearls with a silver clasp, laid in a loose loop",
-      badges: [
-        { label: "Luxury-Grade Silver", at: [0.54, 0.095] },
-        { label: "Organic Shape", at: [0.15, 0.45] },
-        { label: "Freshwater Pearls", at: [0.45, 0.86] },
-      ],
-    },
-    {
-      name: "Selene Pendant",
-      ref: "Nº 002",
-      category: "Pendants",
-      featured: true,
-      images: ["assets/products/selene-pendant.webp", "assets/products/selene-pendant-close.webp", "assets/products/selene-pendant-mirror.webp"],
-      alt: "A flat baroque pearl on a fine silver chain, on dark slate",
-    },
-    {
-      name: "Halo Ring",
-      ref: "Nº 003",
-      category: "Rings",
-      featured: true,
-      images: ["assets/products/halo-ring.webp", "assets/products/halo-ring-close.webp"],
-      alt: "A single pearl set on a slim silver band",
-      orbit: { frames: 24, files: "assets/products/orbit/halo-ring-##.webp" },
-    },
-    {
-      name: "Moon Drop Earrings",
-      ref: "Nº 004",
-      category: "Earrings",
-      featured: true,
-      images: ["assets/products/moon-drop.webp", "assets/products/moon-drop-close.webp", "assets/products/moon-drop-mirror.webp"],
-      alt: "A pair of long baroque pearl drops on silver hooks",
-    },
-    {
-      name: "Petal Cluster Studs",
-      ref: "Nº 005",
-      category: "Earrings",
-      featured: true,
-      images: ["assets/products/petal-studs.webp", "assets/products/petal-studs-close.webp"],
-      alt: "Two studs, each a cluster of small pearls on a silver base",
-      badges: ["Luxury-Grade Silver", "Organic Shape", "Freshwater Pearls", "Cluster Setting"],
-    },
-    {
-      name: "Shoreline Bracelet",
-      ref: "Nº 006",
-      category: "Bracelets",
-      featured: true,
-      images: ["assets/products/shoreline-bracelet.webp", "assets/products/shoreline-bracelet-close.webp", "assets/products/shoreline-bracelet-mirror.webp"],
-      alt: "A bracelet of pearls with small silver spacer beads",
-    },
-    {
-      name: "Undertow Lariat",
-      ref: "Nº 007",
-      category: "Misc",
-      featured: true,
-      images: ["assets/products/undertow-lariat.webp", "assets/products/undertow-lariat-close.webp"],
-      alt: "A silver Y-necklace with stationed pearls and a long pearl drop",
-    },
-    {
-      name: "Crescent Ring",
-      ref: "Nº 008",
-      category: "Rings",
-      images: ["assets/products/halo-ring-mirror.webp"],
-      alt: "A single pearl on a slim silver band",
-    },
-    {
-      name: "Solitaire Ring",
-      ref: "Nº 009",
-      category: "Rings",
-      images: ["assets/products/halo-ring-close.webp"],
-      alt: "A single pearl on a slim silver band, close up",
-    },
-    {
-      name: "Duet Ring",
-      ref: "Nº 010",
+      name: "Sun Blossom Ring",
+      ref: "R8121",
       category: "Rings",
       images: ["assets/products/halo-ring.webp"],
-      alt: "A pearl ring on a silver band",
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $60 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Tide Pool Ring",
-      ref: "Nº 011",
+      name: "Solitaire Freshwater Ring",
+      ref: "R6010",
+      category: "Rings",
+      images: ["assets/products/halo-ring-close.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
+      // price: $68 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Bow Knot Ring",
+      ref: "R6181",
       category: "Rings",
       images: ["assets/products/halo-ring-mirror.webp"],
-      alt: "A pearl ring on a silver band",
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $76 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Moonlet Drops",
-      ref: "Nº 012",
+      name: "Iris Ring",
+      ref: "R8165",
+      category: "Rings",
+      images: ["assets/products/halo-ring.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
+      // price: $156 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Glittering Iris Ring",
+      ref: "R8166",
+      category: "Rings",
+      images: ["assets/products/halo-ring-close.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $160 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Angled Solitaire Freshwater Ring",
+      ref: "R8168",
+      category: "Rings",
+      images: ["assets/products/halo-ring-mirror.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
+      // price: $156 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "White Shimmer Ring",
+      ref: "R8162",
+      category: "Rings",
+      images: ["assets/products/halo-ring.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $100 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Infinite 8 Ring",
+      ref: "R8149",
+      category: "Rings",
+      images: ["assets/products/halo-ring-close.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $102 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Heart Stud Earrings",
+      ref: "E8017",
+      category: "Earrings",
+      images: ["assets/products/moon-drop.webp"],
+      alt: "dome freshwater pearl, white -- placeholder photo",
+      badges: ["PS Silver", "Dome Pearl", "Freshwater Pearls", "White"],
+      // price: $44 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Satellite Stud Earrings",
+      ref: "EF146",
+      category: "Earrings",
+      images: ["assets/products/moon-drop-close.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $52 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Freshwater Pebble Drop Earrings",
+      ref: "EF228",
       category: "Earrings",
       images: ["assets/products/moon-drop-mirror.webp"],
-      alt: "Baroque pearl drops on silver hooks",
+      alt: "baroque freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Baroque Pearl", "Freshwater Pearls", "White"],
+      // price: $38 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Comet Drops",
-      ref: "Nº 013",
+      name: "Harp Hoop Drop Earrings",
+      ref: "E5324",
       category: "Earrings",
-      images: ["assets/products/moon-drop-close.webp"],
-      alt: "Baroque pearl drops on silver hooks, close up",
+      images: ["assets/products/petal-studs.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
+      // price: $96 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Bloom Studs",
-      ref: "Nº 014",
+      name: "Bow Knot Threader Earrings",
+      ref: "E6181",
+      category: "Earrings",
+      images: ["assets/products/petal-studs-close.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $88 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Blossom Drop Earrings",
+      ref: "E6214",
       category: "Earrings",
       images: ["assets/products/petal-studs-mirror.webp"],
-      alt: "Pearl cluster studs on silver",
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $110 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Petite Petal Studs",
-      ref: "Nº 015",
+      name: "Gem Shadow Bulb Earrings",
+      ref: "EF094",
+      category: "Earrings",
+      images: ["assets/products/moon-drop.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $52 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Iris Bulb Earrings",
+      ref: "E8165",
+      category: "Earrings",
+      images: ["assets/products/moon-drop-close.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
+      // price: $184 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Glittering Iris Bulb Earrings",
+      ref: "E8166",
+      category: "Earrings",
+      images: ["assets/products/moon-drop-mirror.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $172 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Simple Freshwater Bulb Earrings",
+      ref: "E8168",
+      category: "Earrings",
+      images: ["assets/products/petal-studs.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
+      // price: $184 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Gem Drop Earrings",
+      ref: "E8162",
       category: "Earrings",
       images: ["assets/products/petal-studs-close.webp"],
-      alt: "Pearl cluster studs on silver, close up",
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $128 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Opera Strand",
-      ref: "Nº 016",
-      category: "Strings",
-      images: ["assets/products/tidal-strand-mirror.webp"],
-      alt: "A long strand of baroque pearls",
+      name: "Infinite 8 Earrings",
+      ref: "E8149",
+      category: "Earrings",
+      images: ["assets/products/petal-studs-mirror.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $114 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Princess Strand",
-      ref: "Nº 017",
-      category: "Strings",
-      images: ["assets/products/tidal-strand-close.webp"],
-      alt: "A strand of baroque pearls, close up",
-    },
-    {
-      name: "Graduated Strand",
-      ref: "Nº 018",
-      category: "Strings",
-      images: ["assets/products/tidal-strand-detail.webp"],
-      alt: "Baroque pearls on a strand, close up",
-    },
-    {
-      name: "Matinee Strand",
-      ref: "Nº 019",
+      name: "Heart Lock String",
+      ref: "C1830",
       category: "Strings",
       images: ["assets/products/tidal-strand.webp"],
-      alt: "A strand of baroque pearls with a silver clasp",
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Silver", "Round Pearl", "Freshwater Pearls", "White"],
+      // price: $164 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Luna Pendant",
-      ref: "Nº 020",
-      category: "Pendants",
-      images: ["assets/products/selene-pendant-mirror.webp"],
-      alt: "A baroque pearl on a fine silver chain",
+      name: "Baby Beads String",
+      ref: "CF015",
+      category: "Strings",
+      images: ["assets/products/tidal-strand-detail.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Silver", "Round Pearl", "Freshwater Pearls", "White"],
+      // price: $88 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Eclipse Pendant",
-      ref: "Nº 021",
-      category: "Pendants",
-      images: ["assets/products/selene-pendant-close.webp"],
-      alt: "A baroque pearl pendant, close up",
+      name: "Ascendant String",
+      ref: "CF023",
+      category: "Strings",
+      images: ["assets/products/tidal-strand-close.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Silver", "Round Pearl", "Freshwater Pearls", "White"],
+      // price: $180 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Plumb Pendant",
-      ref: "Nº 022",
-      category: "Pendants",
-      images: ["assets/products/undertow-lariat-close.webp"],
-      alt: "A pearl drop on a silver chain",
+      name: "Seaside Chain",
+      ref: "CF176",
+      category: "Strings",
+      images: ["assets/products/tidal-strand-mirror.webp"],
+      alt: "baroque freshwater pearl, multicolor -- placeholder photo",
+      badges: ["Silver", "Baroque Pearl", "Freshwater Pearls", "Multicolor"],
+      // price: $96 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Nocturne Pendant",
-      ref: "Nº 023",
+      name: "Shoreline Pebbles Chain",
+      ref: "CF180",
+      category: "Strings",
+      images: ["assets/products/tidal-strand.webp"],
+      alt: "baroque freshwater pearl, multicolor -- placeholder photo",
+      badges: ["Silver", "Baroque Pearl", "Freshwater Pearls", "Multicolor"],
+      // price: $150 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Petite Ascendant String",
+      ref: "CF229",
+      category: "Strings",
+      images: ["assets/products/tidal-strand-detail.webp"],
+      alt: "teardrop freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Teardrop Pearl", "Freshwater Pearls", "White"],
+      // price: $118 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Variety String",
+      ref: "CF259",
+      category: "Strings",
+      images: ["assets/products/tidal-strand-close.webp"],
+      alt: "baroque freshwater pearl, multicolor -- placeholder photo",
+      badges: ["Silver", "Baroque Pearl", "Freshwater Pearls", "Multicolor"],
+      // price: $46 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Snowdrop Simple Necklace",
+      ref: "N1820",
       category: "Pendants",
       images: ["assets/products/selene-pendant.webp"],
-      alt: "A baroque pearl on a fine silver chain",
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $50 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Collar Choker",
-      ref: "Nº 024",
-      category: "Chokers",
-      images: ["assets/products/tidal-strand-close.webp"],
-      alt: "A short strand of baroque pearls",
+      name: "Sun Mount Simple Necklace",
+      ref: "NF194",
+      category: "Pendants",
+      images: ["assets/products/selene-pendant-close.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
+      // price: $46 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Ripple Choker",
-      ref: "Nº 025",
-      category: "Chokers",
-      images: ["assets/products/shoreline-bracelet-close.webp"],
-      alt: "A close circle of pearls with silver spacers",
+      name: "Pebble Line Necklace",
+      ref: "NF239",
+      category: "Pendants",
+      images: ["assets/products/selene-pendant-mirror.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
+      // price: $42 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Harbour Choker",
-      ref: "Nº 026",
-      category: "Chokers",
-      images: ["assets/products/tidal-strand-mirror.webp"],
-      alt: "A short strand of baroque pearls",
+      name: "Bunnie Necklace",
+      ref: "NF330",
+      category: "Pendants",
+      images: ["assets/products/selene-pendant.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
+      // price: $42 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Spindle Choker",
-      ref: "Nº 027",
-      category: "Chokers",
-      images: ["assets/products/shoreline-bracelet-mirror.webp"],
-      alt: "A circle of pearls with silver spacers",
+      name: "Sun Blossom Pendant",
+      ref: "P8121",
+      category: "Pendants",
+      images: ["assets/products/selene-pendant-close.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $46 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Sandbar Bracelet",
-      ref: "Nº 028",
-      category: "Bracelets",
-      images: ["assets/products/shoreline-bracelet-mirror.webp"],
-      alt: "Pearls with small silver spacer beads",
+      name: "Pearl Drop Pendant",
+      ref: "P5324",
+      category: "Pendants",
+      images: ["assets/products/selene-pendant-mirror.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
+      // price: $60 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Spindrift Bracelet",
-      ref: "Nº 029",
-      category: "Bracelets",
-      images: ["assets/products/shoreline-bracelet-close.webp"],
-      alt: "Pearls with silver spacers, close up",
+      name: "Bow Knot Pendant",
+      ref: "P6181",
+      category: "Pendants",
+      images: ["assets/products/selene-pendant.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $80 (confirmed retail; not yet a renderable field on the site)
     },
     {
-      name: "Estuary Bracelet",
-      ref: "Nº 030",
+      name: "Iris Pendant",
+      ref: "P8165",
+      category: "Pendants",
+      images: ["assets/products/selene-pendant-close.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
+      // price: $192 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Glittering Iris Pendant",
+      ref: "P8166",
+      category: "Pendants",
+      images: ["assets/products/selene-pendant-mirror.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $204 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Angle Mount Pendant",
+      ref: "P8168",
+      category: "Pendants",
+      images: ["assets/products/selene-pendant.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
+      // price: $192 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Gem Mount Pendant",
+      ref: "P8162",
+      category: "Pendants",
+      images: ["assets/products/selene-pendant-close.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $142 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Infinite 8 Pendant",
+      ref: "P8149",
+      category: "Pendants",
+      images: ["assets/products/selene-pendant-mirror.webp"],
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
+      // price: $96 (confirmed retail; not yet a renderable field on the site)
+    },
+    {
+      name: "Chain Linked Bracelet",
+      ref: "WF040",
       category: "Bracelets",
       images: ["assets/products/shoreline-bracelet.webp"],
-      alt: "A bracelet of pearls with silver spacers",
-    },
-    {
-      name: "Current Lariat",
-      ref: "Nº 031",
-      category: "Misc",
-      images: ["assets/products/undertow-lariat-mirror.webp"],
-      alt: "A silver Y-necklace with stationed pearls",
-    },
-    {
-      name: "Cluster Brooch",
-      ref: "Nº 032",
-      category: "Misc",
-      images: ["assets/products/petal-studs-close.webp"],
-      alt: "A cluster of pearls on silver",
-    },
-    {
-      name: "Drop Pin",
-      ref: "Nº 033",
-      category: "Misc",
-      images: ["assets/products/moon-drop-close.webp"],
-      alt: "A baroque pearl drop on silver",
+      alt: "baroque freshwater pearl, multicolor -- placeholder photo",
+      badges: ["Silver", "Baroque Pearl", "Freshwater Pearls", "Multicolor"],
+      // price: $154 (confirmed retail; not yet a renderable field on the site)
     },
   ],
 };
