@@ -1142,6 +1142,23 @@
   // Card sizes depend on the fonts; measure again once they have loaded.
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(layoutRows);
 
+  // Each category fades in the first time it is scrolled to.
+  if ("IntersectionObserver" in window && !motionQuery.matches) {
+    const arrive = new IntersectionObserver(
+      (entries) =>
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.remove("is-waiting");
+          arrive.unobserve(entry.target);
+        }),
+      { rootMargin: "0px 0px -12% 0px" },
+    );
+    rows.forEach((row) => {
+      row.section.classList.add("is-waiting");
+      arrive.observe(row.section);
+    });
+  }
+
   // Of the copies of a piece in its row, the one to grow from or return to:
   // the one tapped, if still in view, otherwise the one nearest the gutter.
   function rowFrame(i) {

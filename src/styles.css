@@ -245,7 +245,7 @@
     --drag: 0px;
   }
   .slide {
-    --w: min(74cqh, 62cqw);
+    --w: min(78cqh, 74cqw);
     --gap: clamp(1.25rem, 3.5cqw, 4rem);
     position: absolute;
     left: 50%;
@@ -263,12 +263,12 @@
     will-change: transform;
 
     @media (orientation: portrait) and (max-width: 639px) {
-      --w: min(72cqh, 86cqw);
+      --w: min(73cqh, 92cqw);
       --gap: 0.875rem;
       aspect-ratio: 3 / 4;
     }
     @media (orientation: portrait) and (min-width: 640px) {
-      --w: min(78cqh, 80cqw);
+      --w: min(78cqh, 88cqw);
     }
   }
   .slide.is-far {
@@ -1166,16 +1166,20 @@
     color: var(--color-taupe);
   }
 
-  /* Each category rises gently into place as it scrolls into view (where the
-     browser supports scroll-linked animation; elsewhere it is simply there). */
-  @supports (animation-timeline: view()) {
-    @media (prefers-reduced-motion: no-preference) {
-      .row {
-        animation: rise linear both;
-        animation-timeline: view();
-        animation-range: entry 0% entry 55%;
-      }
-    }
+  /* Each category fades and rises into place the first time it scrolls into
+     view: the title first, then its photos. The script marks the rows still
+     waiting below; without it they are simply there. */
+  .row > * {
+    transition:
+      opacity 1200ms var(--ease-silk),
+      translate 1200ms var(--ease-silk);
+  }
+  .row > .row-track {
+    transition-delay: 160ms;
+  }
+  .row.is-waiting > * {
+    opacity: 0;
+    translate: 0 2.5rem;
   }
 
   /* ------------------------------------------------------------- index */
