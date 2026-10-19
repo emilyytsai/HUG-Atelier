@@ -1029,10 +1029,11 @@
   }
   .row-title {
     font-family: var(--font-sans);
-    font-weight: 400;
+    font-weight: 300;
     font-size: clamp(1.75rem, 3.2vw, 2.9rem);
     line-height: 1;
-    letter-spacing: -0.005em;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
   }
   .row-count {
     align-self: flex-end;
@@ -1201,9 +1202,11 @@
   }
   .index-cat {
     font-family: var(--font-sans);
-    font-weight: 400;
+    font-weight: 300;
     font-size: clamp(1.35rem, 2vw, 1.85rem);
     line-height: 1.1;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
   }
   .index-grid {
     display: grid;
