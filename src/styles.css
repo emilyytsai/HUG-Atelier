@@ -1025,39 +1025,6 @@
     align-items: center;
   }
 
-  /* ------------------------------------------------------ scroll cue */
-
-  /* A hairline under the main carousel with light running down it: the page
-     continues below. Tapping it glides down to the categories. */
-  .cue {
-    position: absolute;
-    left: 50%;
-    bottom: 0;
-    translate: -50% 0;
-    width: 2.75rem;
-    height: min(2.5rem, 4.5vh);
-    display: grid;
-    justify-items: center;
-    padding: 0;
-  }
-  .cue span {
-    position: relative;
-    width: 1px;
-    height: 100%;
-    overflow: hidden;
-    background: rgb(26 26 26 / 0.12);
-  }
-  .cue span::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: -60%;
-    width: 1px;
-    height: 60%;
-    background: linear-gradient(transparent, var(--color-ink));
-    animation: cue-run 2600ms var(--ease-glide) infinite;
-  }
-
   /* ----------------------------------------------------- categories */
 
   .collections {
@@ -1461,14 +1428,6 @@
     transform: scale(1);
   }
 }
-@keyframes cue-run {
-  from {
-    top: -60%;
-  }
-  to {
-    top: 100%;
-  }
-}
 @keyframes glint {
   0% {
     background-position: 130% 0;
@@ -1594,8 +1553,7 @@ html[data-vt="prev"]::view-transition-new(root) {
 /* ------------------------------------------------------------ reduced motion */
 
 @media (prefers-reduced-motion: reduce) {
-  .aura,
-  .cue span::after {
+  .aura {
     animation: none;
   }
   .menu-glass,

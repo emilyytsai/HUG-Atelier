@@ -49,7 +49,6 @@
     menuAll: $("menu-all"),
     page: $("page"),
     collections: $("collections"),
-    cue: $("cue"),
     indexBack: $("index-back"),
     dots: $("dots"),
     panel: $("panel"),
@@ -1171,14 +1170,6 @@
     if (!card) return;
     if (!rowFrame(i)) card.row.reveal(card.k, false);
     card.row.section.scrollIntoView({ block: "nearest" });
-  }
-
-  // The hairline under the main carousel scrolls down to the categories.
-  if (categories.length) {
-    el.cue.hidden = false;
-    el.cue.addEventListener("click", () =>
-      el.collections.scrollIntoView({ behavior: motionQuery.matches ? "auto" : "smooth" }),
-    );
   }
 
   // ---------------------------------------------------- categories menu ---
