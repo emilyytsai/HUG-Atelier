@@ -967,6 +967,7 @@
   window.addEventListener("popstate", route);
 
   el.back.addEventListener("click", back);
+  $("to-top").addEventListener("click", () => window.scrollTo({ top: 0, behavior: motionQuery.matches ? "auto" : "smooth" }));
   el.nav.addEventListener("click", (e) => {
     const b = e.target.closest("[data-step]");
     if (b) step(Number(b.dataset.step));

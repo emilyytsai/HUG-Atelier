@@ -1013,8 +1013,48 @@
     gap: clamp(3.5rem, 9vh, 7rem);
     padding-block: clamp(3rem, 9vh, 6.5rem) clamp(4rem, 12vh, 8rem);
   }
-  .collections:empty {
+  .collections:empty,
+  .collections:empty + .page-end {
     display: none;
+  }
+
+  /* Back to top: a glass circle with the label beneath, in the logo's
+     small spaced capitals. */
+  .page-end {
+    display: grid;
+    justify-items: center;
+    padding-bottom: max(clamp(3rem, 9vh, 5.5rem), env(safe-area-inset-bottom));
+  }
+  .to-top {
+    display: grid;
+    justify-items: center;
+    gap: 1rem;
+    padding: 0.5rem;
+    color: var(--color-ink);
+  }
+  .to-top-label {
+    font-size: 0.625rem;
+    font-weight: 400;
+    letter-spacing: 0.7em;
+    margin-right: -0.7em;
+    text-transform: uppercase;
+  }
+  .to-top:focus-visible {
+    outline: none;
+  }
+  .to-top:focus-visible .round {
+    box-shadow:
+      0 0 0 1.5px rgb(26 26 26 / 0.45),
+      inset 0 1px 0 rgb(255 255 255 / 1),
+      0 14px 34px -20px rgb(26 26 26 / 0.24);
+  }
+  .to-top:active .round {
+    scale: 0.96;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .to-top:hover svg {
+      translate: 0 -2px;
+    }
   }
   .row {
     display: grid;
