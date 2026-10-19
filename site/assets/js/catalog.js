@@ -5,7 +5,7 @@
   "use strict";
 
   const DEFAULT_BADGES = ["Luxury-Grade Silver", "Organic Shape", "Freshwater Pearls"];
-  const PIECE_KEYS = ["name", "images", "image", "alt", "ref", "badges", "hidden", "id", "orbit", "category", "featured"];
+  const PIECE_KEYS = ["name", "images", "image", "alt", "ref", "badges", "price", "hidden", "id", "orbit", "category", "featured"];
   const SETTING_KEYS = ["autoRotateSeconds", "photoSeconds", "idleReturnSeconds", "zoom"];
   const PHOTO = /^assets\/products\/(?:[^/]+\/)*[^/]+\.(?:webp|avif|jpe?g|png)$/i;
 
@@ -214,6 +214,14 @@
       if (p.featured === true || p.featured === "true") featured.push(pieces.length);
       if (category) category.pieces.push(pieces.length);
 
+      // Price in whole dollars. Optional: a piece with no price just shows none.
+      let price = null;
+      if (p.price !== undefined) {
+        const n = typeof p.price === "string" ? parseFloat(p.price) : Number(p.price);
+        if (!Number.isFinite(n) || n < 0) note(`${where}: price should be a positive number, like 120. Ignored.`);
+        else price = Math.round(n);
+      }
+
       pieces.push(
         Object.freeze({
           id,
@@ -222,6 +230,7 @@
           alt: cleanText(p.alt, 240, `${where}: alt`) || name,
           images: Object.freeze(images.slice(0, 12)),
           badges: Object.freeze(cleanBadges(p.badges, where) ?? fallback),
+          price,
           orbit,
           category: category ? category.id : null,
         }),

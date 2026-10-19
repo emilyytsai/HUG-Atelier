@@ -793,6 +793,13 @@
       font-size: clamp(2.75rem, 7.5vw, 4.75rem);
     }
   }
+  .price {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: clamp(1.15rem, 2vw, 1.5rem);
+    letter-spacing: 0.01em;
+    font-variant-numeric: tabular-nums;
+  }
   .badges {
     display: flex;
     flex-wrap: wrap;

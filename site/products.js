@@ -1,11 +1,12 @@
 /*
  * HUG Atelier: the collection
  * ---------------------------
- * Real names, specs and confirmed prices (see per-piece comments) for the
- * 40 named Catalog 1 pieces. Photos are still the placeholder studio
- * renders, reused across same-category pieces, until real photography
- * replaces them -- see import/README.md for the open to-dos (watermarks,
- * resolution, and the 3 pieces -- E8121, E8156, P8156 -- still unnamed).
+ * Real names, specs and confirmed retail prices for the 40 named Catalog 1
+ * pieces. Pearl shape and material come from fix of inventory_7-5-2025.csv
+ * (it wins over Catalog 1 Price.pdf where the two disagree -- see
+ * import/README.md). Photos are still the placeholder studio renders,
+ * reused across same-category pieces, until real photography replaces
+ * them. E8121, E8156 and P8156 are still unnamed and left out.
  *
  * Add a piece     Copy one { ... }, block (from { to },) and paste it where
  *                 you want it. Order here = order on screen, in the main
@@ -41,8 +42,8 @@ window.HUG_ATELIER = {
       category: "Rings",
       images: ["assets/products/halo-ring.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $60 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Gold-plated Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "8.0 - 9.0mm"],
+      price: 60,
     },
     {
       name: "Solitaire Freshwater Ring",
@@ -50,8 +51,8 @@ window.HUG_ATELIER = {
       category: "Rings",
       images: ["assets/products/halo-ring-close.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
-      // price: $68 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "9.0 - 10.0mm"],
+      price: 68,
     },
     {
       name: "Bow Knot Ring",
@@ -59,8 +60,8 @@ window.HUG_ATELIER = {
       category: "Rings",
       images: ["assets/products/halo-ring-mirror.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $76 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "9.0 - 10.0mm"],
+      price: 76,
     },
     {
       name: "Iris Ring",
@@ -68,8 +69,8 @@ window.HUG_ATELIER = {
       category: "Rings",
       images: ["assets/products/halo-ring.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
-      // price: $156 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "11.0 - 12.0mm"],
+      price: 156,
     },
     {
       name: "Glittering Iris Ring",
@@ -77,8 +78,8 @@ window.HUG_ATELIER = {
       category: "Rings",
       images: ["assets/products/halo-ring-close.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $160 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "10.0 - 11.0mm"],
+      price: 160,
     },
     {
       name: "Angled Solitaire Freshwater Ring",
@@ -86,8 +87,8 @@ window.HUG_ATELIER = {
       category: "Rings",
       images: ["assets/products/halo-ring-mirror.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
-      // price: $156 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "11.0 - 12.0mm"],
+      price: 156,
     },
     {
       name: "White Shimmer Ring",
@@ -95,8 +96,8 @@ window.HUG_ATELIER = {
       category: "Rings",
       images: ["assets/products/halo-ring.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $100 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "11.0 - 12.0mm"],
+      price: 100,
     },
     {
       name: "Infinite 8 Ring",
@@ -104,35 +105,35 @@ window.HUG_ATELIER = {
       category: "Rings",
       images: ["assets/products/halo-ring-close.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $102 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "10.0 - 11.0mm"],
+      price: 102,
     },
     {
       name: "Heart Stud Earrings",
       ref: "E8017",
       category: "Earrings",
       images: ["assets/products/moon-drop.webp"],
-      alt: "dome freshwater pearl, white -- placeholder photo",
-      badges: ["PS Silver", "Dome Pearl", "Freshwater Pearls", "White"],
-      // price: $44 (confirmed retail; not yet a renderable field on the site)
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["PS Silver", "Round Pearl", "Freshwater Pearls", "White", "6.0 - 7.0mm"],
+      price: 44,
     },
     {
       name: "Satellite Stud Earrings",
       ref: "EF146",
       category: "Earrings",
       images: ["assets/products/moon-drop-close.webp"],
-      alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $52 (confirmed retail; not yet a renderable field on the site)
+      alt: "baroque freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Baroque Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "3.0 - 3.5mm"],
+      price: 52,
     },
     {
       name: "Freshwater Pebble Drop Earrings",
       ref: "EF228",
       category: "Earrings",
       images: ["assets/products/moon-drop-mirror.webp"],
-      alt: "baroque freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Baroque Pearl", "Freshwater Pearls", "White"],
-      // price: $38 (confirmed retail; not yet a renderable field on the site)
+      alt: "round freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
+      price: 38,
     },
     {
       name: "Harp Hoop Drop Earrings",
@@ -140,8 +141,8 @@ window.HUG_ATELIER = {
       category: "Earrings",
       images: ["assets/products/petal-studs.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
-      // price: $96 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "8.0 - 9.0mm"],
+      price: 96,
     },
     {
       name: "Bow Knot Threader Earrings",
@@ -149,8 +150,8 @@ window.HUG_ATELIER = {
       category: "Earrings",
       images: ["assets/products/petal-studs-close.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $88 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "8.0 - 9.0mm"],
+      price: 88,
     },
     {
       name: "Blossom Drop Earrings",
@@ -158,17 +159,17 @@ window.HUG_ATELIER = {
       category: "Earrings",
       images: ["assets/products/petal-studs-mirror.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $110 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "9.0 - 10.0mm"],
+      price: 110,
     },
     {
       name: "Gem Shadow Bulb Earrings",
       ref: "EF094",
       category: "Earrings",
       images: ["assets/products/moon-drop.webp"],
-      alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $52 (confirmed retail; not yet a renderable field on the site)
+      alt: "assorted-shape freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Variety Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "6.0 - 7.0mm"],
+      price: 52,
     },
     {
       name: "Iris Bulb Earrings",
@@ -176,8 +177,8 @@ window.HUG_ATELIER = {
       category: "Earrings",
       images: ["assets/products/moon-drop-close.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
-      // price: $184 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "10.0 - 11.0mm"],
+      price: 184,
     },
     {
       name: "Glittering Iris Bulb Earrings",
@@ -185,8 +186,8 @@ window.HUG_ATELIER = {
       category: "Earrings",
       images: ["assets/products/moon-drop-mirror.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $172 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "9.0 - 10.0mm"],
+      price: 172,
     },
     {
       name: "Simple Freshwater Bulb Earrings",
@@ -194,8 +195,8 @@ window.HUG_ATELIER = {
       category: "Earrings",
       images: ["assets/products/petal-studs.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
-      // price: $184 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "10.0 - 11.0mm"],
+      price: 184,
     },
     {
       name: "Gem Drop Earrings",
@@ -203,8 +204,8 @@ window.HUG_ATELIER = {
       category: "Earrings",
       images: ["assets/products/petal-studs-close.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $128 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "10.0 - 11.0mm"],
+      price: 128,
     },
     {
       name: "Infinite 8 Earrings",
@@ -212,8 +213,8 @@ window.HUG_ATELIER = {
       category: "Earrings",
       images: ["assets/products/petal-studs-mirror.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $114 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "9.0 - 10.0mm"],
+      price: 114,
     },
     {
       name: "Heart Lock String",
@@ -221,8 +222,8 @@ window.HUG_ATELIER = {
       category: "Strings",
       images: ["assets/products/tidal-strand.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Silver", "Round Pearl", "Freshwater Pearls", "White"],
-      // price: $164 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Silver", "Round Pearl", "Freshwater Pearls", "White", "6.5 - 7.5mm"],
+      price: 164,
     },
     {
       name: "Baby Beads String",
@@ -230,17 +231,17 @@ window.HUG_ATELIER = {
       category: "Strings",
       images: ["assets/products/tidal-strand-detail.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Silver", "Round Pearl", "Freshwater Pearls", "White"],
-      // price: $88 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Silver", "Round Pearl", "Freshwater Pearls", "White", "5.0 - 6.0mm"],
+      price: 88,
     },
     {
       name: "Ascendant String",
       ref: "CF023",
       category: "Strings",
       images: ["assets/products/tidal-strand-close.webp"],
-      alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Silver", "Round Pearl", "Freshwater Pearls", "White"],
-      // price: $180 (confirmed retail; not yet a renderable field on the site)
+      alt: "baroque freshwater pearl, white -- placeholder photo",
+      badges: ["Silver", "Baroque Pearl", "Freshwater Pearls", "White", "5.0 - 8.0mm"],
+      price: 180,
     },
     {
       name: "Seaside Chain",
@@ -248,35 +249,35 @@ window.HUG_ATELIER = {
       category: "Strings",
       images: ["assets/products/tidal-strand-mirror.webp"],
       alt: "baroque freshwater pearl, multicolor -- placeholder photo",
-      badges: ["Silver", "Baroque Pearl", "Freshwater Pearls", "Multicolor"],
-      // price: $96 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Silver", "Baroque Pearl", "Freshwater Pearls", "Multicolor", "6.0 - 10.0mm"],
+      price: 96,
     },
     {
       name: "Shoreline Pebbles Chain",
       ref: "CF180",
       category: "Strings",
       images: ["assets/products/tidal-strand.webp"],
-      alt: "baroque freshwater pearl, multicolor -- placeholder photo",
-      badges: ["Silver", "Baroque Pearl", "Freshwater Pearls", "Multicolor"],
-      // price: $150 (confirmed retail; not yet a renderable field on the site)
+      alt: "droplet freshwater pearl, multicolor -- placeholder photo",
+      badges: ["Silver", "Droplet Pearl", "Freshwater Pearls", "Multicolor", "3.0 - 10.0mm"],
+      price: 150,
     },
     {
       name: "Petite Ascendant String",
       ref: "CF229",
       category: "Strings",
       images: ["assets/products/tidal-strand-detail.webp"],
-      alt: "teardrop freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Teardrop Pearl", "Freshwater Pearls", "White"],
-      // price: $118 (confirmed retail; not yet a renderable field on the site)
+      alt: "dome freshwater pearl, white -- placeholder photo",
+      badges: ["Luxury-Grade Silver", "Dome Pearl", "Freshwater Pearls", "White", "4.5 - 12.0mm"],
+      price: 118,
     },
     {
       name: "Variety String",
       ref: "CF259",
       category: "Strings",
       images: ["assets/products/tidal-strand-close.webp"],
-      alt: "baroque freshwater pearl, multicolor -- placeholder photo",
-      badges: ["Silver", "Baroque Pearl", "Freshwater Pearls", "Multicolor"],
-      // price: $46 (confirmed retail; not yet a renderable field on the site)
+      alt: "round freshwater pearl, multicolor -- placeholder photo",
+      badges: ["Silver", "Round Pearl", "Freshwater Pearls", "Multicolor", "4.0 - 10.0mm"],
+      price: 46,
     },
     {
       name: "Snowdrop Simple Necklace",
@@ -284,8 +285,8 @@ window.HUG_ATELIER = {
       category: "Pendants",
       images: ["assets/products/selene-pendant.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $50 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "5.0 - 6.0mm"],
+      price: 50,
     },
     {
       name: "Sun Mount Simple Necklace",
@@ -293,8 +294,8 @@ window.HUG_ATELIER = {
       category: "Pendants",
       images: ["assets/products/selene-pendant-close.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
-      // price: $46 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Gold-plated Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "5.0 - 6.0mm"],
+      price: 46,
     },
     {
       name: "Pebble Line Necklace",
@@ -302,8 +303,8 @@ window.HUG_ATELIER = {
       category: "Pendants",
       images: ["assets/products/selene-pendant-mirror.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
-      // price: $42 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "5.0 - 6.0mm"],
+      price: 42,
     },
     {
       name: "Bunnie Necklace",
@@ -311,8 +312,8 @@ window.HUG_ATELIER = {
       category: "Pendants",
       images: ["assets/products/selene-pendant.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
-      // price: $42 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "5.0 - 6.0mm"],
+      price: 42,
     },
     {
       name: "Sun Blossom Pendant",
@@ -320,8 +321,8 @@ window.HUG_ATELIER = {
       category: "Pendants",
       images: ["assets/products/selene-pendant-close.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $46 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Gold-plated Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "8.0 - 9.0mm"],
+      price: 46,
     },
     {
       name: "Pearl Drop Pendant",
@@ -329,8 +330,8 @@ window.HUG_ATELIER = {
       category: "Pendants",
       images: ["assets/products/selene-pendant-mirror.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
-      // price: $60 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "9.0 - 10.0mm"],
+      price: 60,
     },
     {
       name: "Bow Knot Pendant",
@@ -338,8 +339,8 @@ window.HUG_ATELIER = {
       category: "Pendants",
       images: ["assets/products/selene-pendant.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $80 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "9.0 - 10.0mm"],
+      price: 80,
     },
     {
       name: "Iris Pendant",
@@ -347,8 +348,8 @@ window.HUG_ATELIER = {
       category: "Pendants",
       images: ["assets/products/selene-pendant-close.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
-      // price: $192 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "11.0 - 12.0mm"],
+      price: 192,
     },
     {
       name: "Glittering Iris Pendant",
@@ -356,8 +357,8 @@ window.HUG_ATELIER = {
       category: "Pendants",
       images: ["assets/products/selene-pendant-mirror.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $204 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "10.0 - 11.0mm"],
+      price: 204,
     },
     {
       name: "Angle Mount Pendant",
@@ -365,8 +366,8 @@ window.HUG_ATELIER = {
       category: "Pendants",
       images: ["assets/products/selene-pendant.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White"],
-      // price: $192 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "11.0 - 12.0mm"],
+      price: 192,
     },
     {
       name: "Gem Mount Pendant",
@@ -374,8 +375,8 @@ window.HUG_ATELIER = {
       category: "Pendants",
       images: ["assets/products/selene-pendant-close.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $142 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "11.0 - 12.0mm"],
+      price: 142,
     },
     {
       name: "Infinite 8 Pendant",
@@ -383,17 +384,17 @@ window.HUG_ATELIER = {
       category: "Pendants",
       images: ["assets/products/selene-pendant-mirror.webp"],
       alt: "round freshwater pearl, white -- placeholder photo",
-      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia"],
-      // price: $96 (confirmed retail; not yet a renderable field on the site)
+      badges: ["Luxury-Grade Silver", "Round Pearl", "Freshwater Pearls", "White", "Cubic Zirconia", "10.0 - 11.0mm"],
+      price: 96,
     },
     {
       name: "Chain Linked Bracelet",
       ref: "WF040",
       category: "Bracelets",
       images: ["assets/products/shoreline-bracelet.webp"],
-      alt: "baroque freshwater pearl, multicolor -- placeholder photo",
-      badges: ["Silver", "Baroque Pearl", "Freshwater Pearls", "Multicolor"],
-      // price: $154 (confirmed retail; not yet a renderable field on the site)
+      alt: "round freshwater pearl, multicolor -- placeholder photo",
+      badges: ["Silver", "Round Pearl", "Freshwater Pearls", "Multicolor", "7.5 - 8.5mm"],
+      price: 154,
     },
   ],
 };

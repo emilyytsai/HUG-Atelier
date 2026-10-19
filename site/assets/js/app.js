@@ -55,6 +55,7 @@
     ambientImg: $("ambient-img"),
     ref: $("piece-ref"),
     name: $("piece-name"),
+    price: $("piece-price"),
     badges: $("badges"),
     nav: $("nav"),
     focusCounter: $("focus-counter"),
@@ -581,9 +582,12 @@
     setRef(el.ref, piece.ref);
     el.ref.hidden = !piece.ref;
     el.name.textContent = piece.name;
+    el.price.hidden = piece.price == null;
+    el.price.textContent = piece.price == null ? "" : `$${piece.price}`;
     el.badges.replaceChildren(...piece.badges.map(renderBadge));
     el.ref.style.setProperty("--i", "0");
     el.name.style.setProperty("--i", "1");
+    el.price.style.setProperty("--i", "2");
     renderDots(piece);
     const list = state.list.includes(i) ? state.list : [i];
     el.focusCounter.textContent = `${pad(list.indexOf(i) + 1)} / ${pad(list.length)}`;
@@ -600,7 +604,7 @@
   function renderBadge(badge, k) {
     const li = document.createElement("li");
     li.className = "rise";
-    li.style.setProperty("--i", String(k + 2));
+    li.style.setProperty("--i", String(k + 3));
     const tag = document.createElement(badge.at ? "button" : "span");
     tag.className = "badge glass";
     if (badge.at) {
