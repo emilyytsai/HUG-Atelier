@@ -818,7 +818,6 @@
       showView("focus");
       scheduleOrbit();
       restartCycle();
-      el.media.classList.add("glint");
       if (frame) frame.style.viewTransitionName = "";
       el.media.style.viewTransitionName = "hero";
       if (focusBack) el.back.focus({ preventScroll: true });
@@ -1597,9 +1596,6 @@
     resizeTimer = setTimeout(() => {
       if (state.view === "focus" && zoom.badge >= 0) showDetail(zoom.badge, true);
     }, 200);
-  });
-  el.media.addEventListener("animationend", (e) => {
-    if (e.animationName === "glint") el.media.classList.remove("glint");
   });
 
   // Touch: hold for the loupe, swipe sideways through the photos and on to

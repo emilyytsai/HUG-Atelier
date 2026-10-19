@@ -6,7 +6,7 @@
  *
  * Bump VERSION after large changes to clear old copies on every device.
  */
-const VERSION = "v17";
+const VERSION = "v18";
 const SHELL = `hug-shell-${VERSION}`;
 const MEDIA = `hug-media-${VERSION}`;
 

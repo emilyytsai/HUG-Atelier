@@ -108,7 +108,7 @@
 /* ------------------------------------------------------------- components */
 
 @layer components {
-  /* Glass: frosted, translucent, hairline white edge with a nacre sheen. */
+  /* Glass: frosted, translucent, with a hairline white edge. */
   .glass {
     position: relative;
     isolation: isolate;
@@ -160,10 +160,9 @@
     background: conic-gradient(
       from var(--sheen),
       rgb(255 255 255 / 0.95),
-      var(--color-rose-nacre) 70deg,
-      var(--color-champagne) 140deg,
-      var(--color-mint-nacre) 210deg,
-      var(--color-lilac-nacre) 285deg,
+      rgb(255 255 255 / 0.45) 140deg,
+      rgb(255 255 255 / 0.95) 210deg,
+      rgb(255 255 255 / 0.45) 285deg,
       rgb(255 255 255 / 0.95)
     );
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -486,25 +485,6 @@
   .focus > .back {
     opacity: calc(1 - var(--fade, 0));
     transition: opacity 400ms var(--ease-silk);
-  }
-
-  /* One sweep of light when a piece opens. Colour dodge with an opaque grey
-     band multiplies brightness (about 1.33x): pearls and silver catch the
-     light, black stays black, and the black around the band changes nothing. */
-  .media::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    pointer-events: none;
-    background: linear-gradient(105deg, rgb(0 0 0) 40%, rgb(64 64 64) 50%, rgb(0 0 0) 60%);
-    background-size: 300% 100%;
-    background-position: 130% 0;
-    mix-blend-mode: color-dodge;
-    opacity: 0;
-  }
-  .media.glint::after {
-    animation: glint 2600ms var(--ease-glide) 650ms both;
   }
 
   /* Touch loupe: a magnifying glass that floats above the finger. */
@@ -1431,20 +1411,6 @@
     transform: scale(1);
   }
 }
-@keyframes glint {
-  0% {
-    background-position: 130% 0;
-    opacity: 0;
-  }
-  18%,
-  80% {
-    opacity: 1;
-  }
-  100% {
-    background-position: -30% 0;
-    opacity: 0;
-  }
-}
 @keyframes sheen-drift {
   from {
     --sheen: 140deg;
@@ -1566,9 +1532,6 @@ html[data-vt="prev"]::view-transition-new(root) {
   }
   .slide.is-active .slide-frame img {
     transform: none;
-  }
-  .media.glint::after {
-    animation: none;
   }
   .slide {
     transform: translate(-50%, -50%) translateX(calc(var(--o, 0) * (var(--w) + var(--gap)))) scale(var(--s, 1));
