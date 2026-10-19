@@ -246,7 +246,7 @@
   }
   .slide {
     --w: min(78cqh, 74cqw);
-    --gap: clamp(1.25rem, 3.5cqw, 4rem);
+    --gap: 12px;
     position: absolute;
     left: 50%;
     top: 50%;
@@ -264,7 +264,6 @@
 
     @media (orientation: portrait) and (max-width: 639px) {
       --w: min(73cqh, 92cqw);
-      --gap: 0.875rem;
       aspect-ratio: 3 / 4;
     }
     @media (orientation: portrait) and (min-width: 640px) {

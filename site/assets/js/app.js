@@ -179,7 +179,7 @@
     return o;
   }
 
-  const OPACITY = [1, 0.78, 0.22];
+  const OPACITY = [1, 1, 1];
 
   // `moved` is how many places the carousel just moved; slides that land
   // anywhere else wrapped round the back and jump there without animating.
@@ -196,7 +196,6 @@
       }
       button.dataset.o = String(o);
       button.style.setProperty("--o", String(o));
-      button.style.setProperty("--s", o === 0 ? "1" : "0.84");
       button.style.setProperty("--a", String(OPACITY[reach] ?? 0));
       button.classList.toggle("is-active", o === 0);
       button.classList.toggle("is-far", reach > 1);
@@ -391,6 +390,116 @@
     },
     { passive: false },
   );
+
+  // ------------------------------------------------------------- motion ---
+
+  // After the FlexCarousel look, kept to a straight line: on arrival the
+  // photos rise into place from below, the middle first, and while the
+  // carousel moves they draw in slightly. Only the photo inside each slide
+  // moves, so clicks, keys and the morph into the piece view work as before.
+  const MOTION = {
+    squeeze: 0.2, // how far the photos draw in while moving fast
+    intro: 2.1, // seconds for the photos to rise into place on arrival
+  };
+
+  const clamp01 = (v) => Math.min(Math.max(v, 0), 1);
+  const easeOutQuint = (v) => 1 - Math.pow(1 - clamp01(v), 5);
+  const easeInOut = (v) => {
+    const t = clamp01(v);
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  };
+
+  function startMotion() {
+    if (!count) return;
+    const reduced = motionQuery.matches;
+    const items = slides.map((s) => ({ ...s, x: null, seen: "" }));
+    const intro = { t: 0, running: false, done: false, from: performance.now() };
+    let raf = 0;
+    let last = 0;
+    let energy = 0;
+    let visible = true;
+
+    function frame(now) {
+      raf = visible && !document.hidden ? requestAnimationFrame(frame) : 0;
+      const dt = last ? Math.min(now - last, 50) / 1000 : 1 / 60;
+      last = now;
+      const stage = el.stage.getBoundingClientRect();
+      const width = Math.max(1, stage.width);
+      const midX = stage.left + stage.width / 2;
+
+      // How fast the slides beside the one on show are travelling.
+      let sum = 0;
+      let n = 0;
+      const shapes = items.map((item) => {
+        const r = item.button.getBoundingClientRect();
+        const o = Number(item.button.dataset.o);
+        if (item.x !== null && Math.abs(o) <= 1 && Math.abs(r.left - item.x) < width / 2) {
+          sum += Math.abs(r.left - item.x);
+          n++;
+        }
+        item.x = r.left;
+        return { item, o, r };
+      });
+      const travel = n ? sum / n / dt : 0;
+      const goal = reduced ? 0 : Math.min(travel / 2600, 1);
+      energy += (goal - energy) * (1 - Math.exp(-dt / (goal > energy ? 0.07 : 0.35)));
+
+      // The intro starts once the photos beside the middle have loaded.
+      if (!intro.running && !intro.done) {
+        const near = shapes.filter((s) => Math.abs(s.o) <= 1);
+        if (near.every((s) => s.item.frame.matches(".is-loaded, .is-missing")) || now - intro.from > 3500) intro.running = true;
+      }
+      if (intro.running) {
+        intro.t = Math.min(1, intro.t + dt / (reduced ? 0.35 : MOTION.intro));
+        if (intro.t >= 1) {
+          intro.running = false;
+          intro.done = true;
+        }
+      }
+      const t = intro.t;
+      const shrink = 1 - MOTION.squeeze * energy;
+
+      shapes.forEach(({ item, r }) => {
+        const x = r.left + r.width / 2 - midX;
+        let alpha = 1;
+        let rise = 0;
+        let scale = shrink;
+        if (!intro.done) {
+          if (!intro.running) alpha = 0;
+          else if (reduced) alpha = easeOutQuint(t);
+          else {
+            const delay = Math.min(Math.abs(x) / (width * 0.6), 1) * 0.34;
+            const local = clamp01((t - delay) / 0.6);
+            alpha = clamp01(local * 4);
+            rise = (1 - easeOutQuint(local)) * stage.height * 0.62;
+            scale *= 0.5 + 0.5 * easeInOut((local - 0.18) / 0.82);
+          }
+        }
+        const transform = `translate3d(0, ${rise.toFixed(2)}px, 0) scale(${scale.toFixed(4)})`;
+        const look = `${transform}|${alpha.toFixed(3)}`;
+        if (look === item.seen) return;
+        item.seen = look;
+        item.frame.style.transform = transform;
+        item.frame.style.opacity = alpha >= 1 ? "" : alpha.toFixed(3);
+      });
+    }
+
+    const wake = () => {
+      if (!raf && visible && !document.hidden) {
+        last = 0;
+        raf = requestAnimationFrame(frame);
+      }
+    };
+    document.addEventListener("visibilitychange", wake);
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(([entry]) => {
+        visible = entry.isIntersecting;
+        wake();
+      }).observe(el.showcase);
+    }
+    wake();
+  }
+  startMotion();
 
   // -------------------------------------------------------------- focus ---
 
