@@ -1958,34 +1958,6 @@
     }),
   );
 
-  // The moving light plays only in the piece view, and is set there rather
-  // than on the whole page, so the carousels are never restyled for it. On
-  // touch screens there is no pointer to follow, so the light drifts on its
-  // own, about 7 times a second.
-  if (!fineHover.matches && !motionQuery.matches) {
-    const drift0 = performance.now();
-    setInterval(() => {
-      if (document.hidden || state.view !== "focus") return;
-      const angle = 140 + (((performance.now() - drift0) / 16000) % 1) * 360;
-      el.focus.style.setProperty("--sheen", `${angle.toFixed(1)}deg`);
-    }, 140);
-  }
-
-  // Light moves across the glass as the pointer moves, like a lamp over nacre.
-  let sheenFrame = 0;
-  window.addEventListener(
-    "pointermove",
-    (e) => {
-      if (sheenFrame || state.view !== "focus" || motionQuery.matches || e.pointerType !== "mouse") return;
-      sheenFrame = requestAnimationFrame(() => {
-        sheenFrame = 0;
-        const angle = 140 + (e.clientX / innerWidth) * 140 + (e.clientY / innerHeight) * 60;
-        el.focus.style.setProperty("--sheen", `${angle.toFixed(1)}deg`);
-      });
-    },
-    { passive: true },
-  );
-
   // ----------------------------------------------------------- keyboard ---
 
   document.addEventListener("keydown", (e) => {
