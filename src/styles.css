@@ -345,8 +345,8 @@
     gap: 1.1rem;
   }
   .caption-name {
-    font-family: var(--font-display);
-    font-weight: 600;
+    font-family: var(--font-sans);
+    font-weight: 400;
     font-size: clamp(1.4rem, 2.3vw, 2.15rem);
     letter-spacing: 0.005em;
     line-height: 1.1;
@@ -722,8 +722,8 @@
     color: var(--color-taupe);
   }
   .piece-name {
-    font-family: var(--font-display);
-    font-weight: 600;
+    font-family: var(--font-sans);
+    font-weight: 400;
     font-size: clamp(2.25rem, 5vw, 5.5rem);
     line-height: 0.98;
     letter-spacing: -0.012em;
@@ -982,8 +982,8 @@
   }
   .menu-name {
     position: relative;
-    font-family: var(--font-display);
-    font-weight: 600;
+    font-family: var(--font-sans);
+    font-weight: 400;
     font-size: 1.15rem;
     line-height: 1.2;
   }
@@ -1048,8 +1048,8 @@
     padding-inline: var(--gutter);
   }
   .row-title {
-    font-family: var(--font-display);
-    font-weight: 600;
+    font-family: var(--font-sans);
+    font-weight: 400;
     font-size: clamp(1.75rem, 3.2vw, 2.9rem);
     line-height: 1;
     letter-spacing: -0.005em;
@@ -1152,8 +1152,8 @@
     }
   }
   .card-name {
-    font-family: var(--font-display);
-    font-weight: 600;
+    font-family: var(--font-sans);
+    font-weight: 400;
     font-size: clamp(1rem, 1.3vw, 1.2rem);
     line-height: 1.15;
   }
@@ -1220,8 +1220,8 @@
     gap: clamp(1rem, 2.5vh, 1.75rem);
   }
   .index-cat {
-    font-family: var(--font-display);
-    font-weight: 600;
+    font-family: var(--font-sans);
+    font-weight: 400;
     font-size: clamp(1.35rem, 2vw, 1.85rem);
     line-height: 1.1;
   }
@@ -1259,8 +1259,8 @@
     }
   }
   .index-name {
-    font-family: var(--font-display);
-    font-weight: 600;
+    font-family: var(--font-sans);
+    font-weight: 400;
     font-size: clamp(1rem, 1.35vw, 1.3rem);
     line-height: 1.15;
   }
