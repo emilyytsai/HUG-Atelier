@@ -1,0 +1,5 @@
+# Netlify publishes only the site/ folder. Security headers live in site/_headers.
+# The checks stop a deploy if the headers drifted or products.js is broken.
+[build]
+  publish = "site"
+  command = "npm run check && npm run check-products"
