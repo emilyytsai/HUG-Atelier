@@ -276,22 +276,18 @@
     el.counter.textContent = `${pad(state.active + 1)} / ${pad(count)}`;
     logoTone();
     const name = el.captionName;
+    if (name.textContent === piece.name) return;
+    // The text swaps right away, not inside an animation's onfinish: fast
+    // swiping fires this many times a second, and an onfinish deferred swap
+    // keeps getting cancelled before it runs, so the name sticks on the
+    // first piece while the fade-out opacity alone bounces back and forth.
     name.getAnimations().forEach((a) => a.cancel());
-    if (instant || motionQuery.matches) {
-      name.textContent = piece.name;
-      return;
-    }
-    const out = name.animate(
-      [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(-6px)" }],
-      { duration: 300, easing: "cubic-bezier(.4,0,1,1)", fill: "forwards" },
+    name.textContent = piece.name;
+    if (instant || motionQuery.matches) return;
+    name.animate(
+      [{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }],
+      { duration: 500, easing: "cubic-bezier(.22,1,.36,1)", fill: "forwards" },
     );
-    out.onfinish = () => {
-      name.textContent = piece.name;
-      name.animate(
-        [{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }],
-        { duration: 800, easing: "cubic-bezier(.22,1,.36,1)", fill: "forwards" },
-      );
-    };
   }
 
   function go(delta, instant = false) {
