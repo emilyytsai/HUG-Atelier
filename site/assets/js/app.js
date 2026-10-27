@@ -1157,9 +1157,24 @@
 
     function measure() {
       const width = strip.firstElementChild.getBoundingClientRect().width;
-      row.pitch = width + (parseFloat(getComputedStyle(strip).columnGap) || 0) || 1;
+      const gap = parseFloat(getComputedStyle(strip).columnGap) || 0;
+      row.pitch = width + gap || 1;
       row.loop = row.n * row.pitch;
       row.edge = parseFloat(getComputedStyle(track).paddingLeft) || 0;
+      // When every piece fits in the window there is nothing to scroll to:
+      // show each piece once, standing still, instead of looping repeats.
+      const room = track.clientWidth - row.edge - (parseFloat(getComputedStyle(track).paddingRight) || 0);
+      row.still = row.loop - gap <= room + 0.5;
+      section.classList.toggle("is-still", row.still);
+      if (row.still) {
+        if (row.sets > 1) {
+          strip.querySelectorAll(":scope > li[aria-hidden]").forEach((li) => li.remove());
+          cat.pieces.forEach((i) => (cards[i].frames = cards[i].frames.filter((f) => f.isConnected)));
+          row.sets = 1;
+          row.lead = 0;
+        }
+        return;
+      }
       // At rest the row stays within half a loop of home, and a glide goes at
       // most one loop further, so cover one and a half loops past each side.
       const before = Math.ceil(1.5 + (row.edge + row.pitch) / row.loop);
@@ -1169,6 +1184,7 @@
     }
 
     function set(s) {
+      if (row.still) s = 0;
       row.s = s;
       strip.style.transform = `translate3d(${(-(row.lead * row.loop + s)).toFixed(2)}px, 0, 0)`;
     }
@@ -1194,6 +1210,7 @@
     // first and settling softly. A new glide carries on from wherever the
     // last one had got to.
     function glideTo(target) {
+      if (row.still) return jump(0);
       let now = current();
       const shift = Math.round(now / row.loop) * row.loop;
       now -= shift;
@@ -1233,7 +1250,7 @@
     // the flick's speed and settles on a piece.
     let d = null;
     track.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0) return;
+      if (e.button !== 0 || row.still) return;
       d = { id: e.pointerId, x: e.clientX, y: e.clientY, start: 0, moved: false, trail: [{ t: e.timeStamp, x: e.clientX }] };
     });
     track.addEventListener("pointermove", (e) => {
@@ -1277,7 +1294,7 @@
     track.addEventListener(
       "wheel",
       (e) => {
-        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+        if (row.still || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
         e.preventDefault();
         const { sum, fresh } = readWheel(e);
         if (fresh) wheelSteps = 0;

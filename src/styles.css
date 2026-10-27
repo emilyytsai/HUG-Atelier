@@ -1224,6 +1224,13 @@
     .row-track.is-dragging {
       cursor: grabbing;
     }
+    .row.is-still .row-track {
+      cursor: default;
+    }
+  }
+  /* Every piece fits on screen: nothing to scroll, so no arrows. */
+  .row.is-still .row-arrows {
+    visibility: hidden;
   }
   .card {
     display: grid;
