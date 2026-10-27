@@ -5,7 +5,7 @@
   "use strict";
 
   const DEFAULT_BADGES = ["Luxury-Grade Silver", "Organic Shape", "Freshwater Pearls"];
-  const PIECE_KEYS = ["name", "images", "image", "alt", "ref", "badges", "price", "hidden", "id", "orbit", "category", "featured"];
+  const PIECE_KEYS = ["name", "images", "image", "alt", "ref", "badges", "price", "hidden", "id", "orbit", "category", "collection", "featured"];
   const SETTING_KEYS = ["autoRotateSeconds", "photoSeconds", "idleReturnSeconds", "zoom"];
   const PHOTO = /^assets\/products\/(?:[^/]+\/)*[^/]+\.(?:webp|avif|jpe?g|png)$/i;
 
@@ -151,6 +151,12 @@
       categories.push(cat);
     });
 
+    // Collections: pieces that share a design across jewelry types (a ring,
+    // its earrings, its pendant), grouped by name, in the order each name is
+    // first seen. Unlike categories, there is no list to declare up front.
+    const collections = [];
+    const collByKey = new Map();
+
     const pieces = [];
     const featured = [];
     const seen = new Set();
@@ -214,6 +220,21 @@
       if (p.featured === true || p.featured === "true") featured.push(pieces.length);
       if (category) category.pieces.push(pieces.length);
 
+      let collection = null;
+      if (p.collection !== undefined) {
+        const label = cleanText(p.collection, 60, `${where}: collection`);
+        if (label) {
+          const key = slugify(label);
+          collection = collByKey.get(key);
+          if (!collection) {
+            collection = { id: key, label, pieces: [] };
+            collByKey.set(key, collection);
+            collections.push(collection);
+          }
+        }
+      }
+      if (collection) collection.pieces.push(pieces.length);
+
       // Price in whole dollars. Optional: a piece with no price just shows none.
       let price = null;
       if (p.price !== undefined) {
@@ -233,6 +254,7 @@
           price,
           orbit,
           category: category ? category.id : null,
+          collection: collection ? collection.id : null,
         }),
       );
     });
@@ -245,11 +267,18 @@
       Object.freeze(c);
     });
 
+    collections.forEach((c) => {
+      if (c.pieces.length < 2) note(`Collection "${c.label}" has only one piece. Add another piece with the same collection name, or remove it.`);
+      Object.freeze(c.pieces);
+      Object.freeze(c);
+    });
+
     return {
       settings,
       pieces: Object.freeze(pieces),
       hero: Object.freeze(hero),
       categories: Object.freeze(categories.filter((c) => c.pieces.length)),
+      collections: Object.freeze(collections),
       notes,
     };
   }

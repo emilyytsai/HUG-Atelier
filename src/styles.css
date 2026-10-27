@@ -1400,6 +1400,19 @@
     animation: fade 500ms var(--ease-silk) both;
   }
 
+  /* A single collection: its pieces in the same grid the index uses. */
+  .collection-body {
+    display: grid;
+    gap: clamp(1.5rem, 4vh, 2.5rem);
+    max-width: 82rem;
+    margin: 0 auto;
+  }
+  .collection-head {
+    display: flex;
+    align-items: baseline;
+    gap: 1.1rem;
+  }
+
   /* Owner's check panel (only when opened locally or with ?check). */
   .check {
     position: fixed;

@@ -43,6 +43,11 @@
     lensImg: $("lens-img"),
     index: $("index"),
     indexGroups: $("index-groups"),
+    collection: $("collection"),
+    collectionBack: $("collection-back"),
+    collectionName: $("collection-name"),
+    collectionCount: $("collection-count"),
+    collectionGrid: $("collection-grid"),
     menu: $("menu"),
     menuButton: $("menu-button"),
     menuList: $("menu-list"),
@@ -85,7 +90,17 @@
   const total = pieces.length;
   const hero = catalog.hero || pieces.map((_, i) => i);
   const categories = catalog.categories || [];
-  const count = hero.length;
+  const collections = catalog.collections || [];
+  const repPiece = (ci) => pieces[collections[ci].pieces[0]];
+  // The main carousel leads with every collection, then every piece that
+  // does not belong to one, so a piece is never shown there twice over.
+  const heroPieces = hero.filter((i) => !pieces[i].collection);
+  const heroItems = [
+    ...collections.map((_, ci) => ({ type: "collection", ci })),
+    ...heroPieces.map((i) => ({ type: "piece", i })),
+  ];
+  const count = heroItems.length;
+  const heroSlideOf = (i) => heroItems.findIndex((item) => item.type === "piece" && item.i === i);
 
   const state = {
     view: "showcase",
@@ -96,7 +111,7 @@
     busy: false,
     origin: "hero", // where the piece view was opened from: hero, row or index
     originFrame: null, // the photo it grew out of
-    list: hero, // the pieces the piece view steps through
+    list: heroPieces, // the pieces the piece view steps through
   };
 
   // ------------------------------------------------------------- images ---
@@ -137,14 +152,16 @@
 
   // ----------------------------------------------------------- carousel ---
 
-  // The main carousel shows the featured pieces; slides[k] shows pieces[hero[k]].
-  const slides = hero.map((pieceIndex, k) => {
-    const piece = pieces[pieceIndex];
+  // The main carousel shows every collection, then every piece that does
+  // not belong to one; slides[k] shows heroItems[k].
+  const slides = heroItems.map((item, k) => {
+    const piece = item.type === "collection" ? repPiece(item.ci) : pieces[item.i];
+    const label = item.type === "collection" ? collections[item.ci].label : piece.name;
     const button = document.createElement("button");
     button.type = "button";
     button.className = "slide";
     button.setAttribute("aria-roledescription", "slide");
-    button.setAttribute("aria-label", `${piece.name}, ${k + 1} of ${count}`);
+    button.setAttribute("aria-label", `${label}, ${k + 1} of ${count}`);
     const frame = document.createElement("span");
     frame.className = "slide-frame";
     const img = document.createElement("img");
@@ -158,7 +175,8 @@
     setImage(img, piece.images[0], "");
     button.addEventListener("click", () => {
       if (drag.suppressClick) return;
-      open(pieceIndex, { origin: "hero" });
+      if (item.type === "collection") openCollection(item.ci, { fromHero: true });
+      else open(item.i, { origin: "hero" });
     });
     el.track.append(button);
     return { button, frame, img };
@@ -272,17 +290,18 @@
 
   function caption(instant = false) {
     if (!count) return;
-    const piece = pieces[hero[state.active]];
+    const item = heroItems[state.active];
+    const label = item.type === "collection" ? collections[item.ci].label : pieces[item.i].name;
     el.counter.textContent = `${pad(state.active + 1)} / ${pad(count)}`;
     logoTone();
     const name = el.captionName;
-    if (name.textContent === piece.name) return;
+    if (name.textContent === label) return;
     // The text swaps right away, not inside an animation's onfinish: fast
     // swiping fires this many times a second, and an onfinish deferred swap
     // keeps getting cancelled before it runs, so the name sticks on the
     // first piece while the fade-out opacity alone bounces back and forth.
     name.getAnimations().forEach((a) => a.cancel());
-    name.textContent = piece.name;
+    name.textContent = label;
     if (instant || motionQuery.matches) return;
     name.animate(
       [{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }],
@@ -811,6 +830,7 @@
     el.root.classList.toggle("is-locked", view !== "showcase");
     el.focus.hidden = view !== "focus";
     el.index.hidden = view !== "index";
+    el.collection.hidden = view !== "collection";
     syncTimer();
     bumpIdle();
   }
@@ -843,20 +863,22 @@
   // which pieces the arrows step through, and where Back returns to.
   function frameFor(i, origin) {
     if (origin === "index") return indexFrames[i] || null;
+    if (origin === "collection") return collectionFrames[i] || null;
     if (origin === "row") return rowFrame(i);
-    const k = hero.indexOf(i);
+    const k = heroSlideOf(i);
     return k >= 0 ? slides[k].frame : null;
   }
   function listFor(i, origin) {
     if (origin === "index") return buildIndex() || indexOrder;
+    if (origin === "collection") return collections[openCollectionIndex]?.pieces || [i];
     if (origin === "row") {
       const cat = categories.find((c) => c.id === pieces[i].category);
       return cat ? cat.pieces : [i];
     }
-    return hero;
+    return heroPieces;
   }
   // A link straight to a piece opens it from wherever it lives on the page.
-  const homeOf = (i) => (hero.includes(i) ? "hero" : cards[i] ? "row" : "index");
+  const homeOf = (i) => (heroPieces.includes(i) ? "hero" : cards[i] ? "row" : "index");
 
   function open(i, { push = true, animate = true, origin = homeOf(i), from = null, focusBack = true } = {}) {
     if (state.busy || !pieces[i]) return;
@@ -869,7 +891,7 @@
     state.list = listFor(i, origin);
     const frame = from || frameFor(i, origin);
     const update = () => {
-      const k = hero.indexOf(i);
+      const k = heroSlideOf(i);
       if (origin !== "row" && k >= 0 && state.active !== k) {
         state.active = k;
         layout(true);
@@ -919,14 +941,14 @@
     // has been brought round to it, so it is found inside the update.
     let frame = origin === "row" ? null : frameFor(i, origin);
     const update = () => {
-      const k = hero.indexOf(i);
+      const k = heroSlideOf(i);
       if (origin !== "row" && k >= 0) {
         state.active = k;
         layout(true);
         caption(true);
       }
       resetDrag();
-      showView(origin === "index" ? "index" : "showcase");
+      showView(origin === "index" ? "index" : origin === "collection" ? "collection" : "showcase");
       if (origin === "row") {
         bringIntoRow(i);
         frame = rowFrame(i);
@@ -936,12 +958,15 @@
       if (origin === "index") {
         if (frame) frame.scrollIntoView({ block: "nearest" });
         el.indexBack.focus({ preventScroll: true });
+      } else if (origin === "collection") {
+        if (frame) frame.scrollIntoView({ block: "nearest" });
+        el.collectionBack.focus({ preventScroll: true });
       } else if (el.focus.contains(document.activeElement)) document.activeElement.blur();
     };
     const done = () => {
       if (frame) frame.style.viewTransitionName = "";
       state.busy = false;
-      if (origin === "index") return;
+      if (origin === "index" || origin === "collection") return;
       // Pauses set before the piece opened may be stale now (pointer moved away).
       state.holds.delete("keyboard");
       state.holds.delete("drag");
@@ -1000,6 +1025,7 @@
 
   function back() {
     if (state.view === "index") return leaveIndex();
+    if (state.view === "collection") return leaveCollection();
     if (state.view !== "focus") return;
     if (history.state && history.state.hug && history.state.pushed) history.back();
     else {
@@ -1020,6 +1046,7 @@
     if (i < 0) {
       if (state.view === "focus") return close();
       if (state.view === "index" && !(history.state && history.state.hugIndex)) return closeIndex();
+      if (state.view === "collection" && !(history.state && history.state.hugCollection !== undefined)) return closeCollection();
       return;
     }
     if (state.view === "focus") goTo(i);
@@ -1041,6 +1068,7 @@
   // on and settles on a piece with the same curve. Tapping a piece opens it
   // in the piece view.
   const cards = []; // by piece index: { row, k, frames }
+  const collCards = []; // by collection index: { row, k, frames }
   const rowDrag = { suppress: false };
 
   function makeCard(i) {
@@ -1076,6 +1104,40 @@
     return { li, button: b, frame };
   }
 
+  // A collection's card: the design's first piece (its ring) stands in for
+  // the whole set. Tapping it opens the collection view.
+  function makeCollectionCard(ci) {
+    const coll = collections[ci];
+    const piece = repPiece(ci);
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "card";
+    const frame = document.createElement("span");
+    frame.className = "card-frame";
+    const img = document.createElement("img");
+    img.alt = "";
+    img.draggable = false;
+    img.decoding = "async";
+    watchImage(img);
+    img.src = piece.images[0];
+    frame.append(img);
+    const name = document.createElement("span");
+    name.className = "card-name";
+    name.textContent = coll.label;
+    b.append(frame, name);
+    const count = document.createElement("span");
+    count.className = "card-ref";
+    count.textContent = `${coll.pieces.length} pieces`;
+    b.append(count);
+    b.addEventListener("click", () => {
+      if (rowDrag.suppress) return;
+      openCollection(ci);
+    });
+    li.append(b);
+    return { li, button: b, frame };
+  }
+
   function arrowButton(dir, label) {
     const b = document.createElement("button");
     b.type = "button";
@@ -1091,7 +1153,7 @@
     return b;
   }
 
-  const rows = categories.map((cat) => {
+  function buildRow(cat, makeCardFn, registry) {
     const section = document.createElement("section");
     section.className = "row";
     section.id = `category-${cat.id}`;
@@ -1136,15 +1198,15 @@
     function addSet(copy, before) {
       const set = document.createDocumentFragment();
       cat.pieces.forEach((i, k) => {
-        const card = makeCard(i);
+        const card = makeCardFn(i);
         if (copy) {
           card.li.setAttribute("aria-hidden", "true");
           card.button.tabIndex = -1;
         } else {
           card.button.addEventListener("focus", () => reveal(k, true));
         }
-        if (!cards[i]) cards[i] = { row, k, frames: [] };
-        cards[i].frames.push(card.frame);
+        if (!registry[i]) registry[i] = { row, k, frames: [] };
+        registry[i].frames.push(card.frame);
         set.append(card.li);
       });
       if (before) {
@@ -1169,7 +1231,7 @@
       if (row.still) {
         if (row.sets > 1) {
           strip.querySelectorAll(":scope > li[aria-hidden]").forEach((li) => li.remove());
-          cat.pieces.forEach((i) => (cards[i].frames = cards[i].frames.filter((f) => f.isConnected)));
+          cat.pieces.forEach((i) => (registry[i].frames = registry[i].frames.filter((f) => f.isConnected)));
           row.sets = 1;
           row.lead = 0;
         }
@@ -1311,7 +1373,16 @@
     row.jump = jump;
     row.reveal = reveal;
     return row;
-  });
+  }
+
+  // The named collections sit in their own row, above the jewelry-type rows.
+  const collectionGroup = collections.length
+    ? { id: "collections", label: "Collections", pieces: collections.map((_, i) => i) }
+    : null;
+  const rows = [
+    ...(collectionGroup ? [buildRow(collectionGroup, makeCollectionCard, collCards)] : []),
+    ...categories.map((cat) => buildRow(cat, makeCard, cards)),
+  ];
 
   function layoutRows() {
     rows.forEach((row) => {
@@ -1536,8 +1607,9 @@
     // Its own history entry, so the browser's back button closes it.
     remember("pushState", { hugIndex: true, pushed: true }, "", location.pathname + location.search);
     buildIndex();
+    const activeItem = count ? heroItems[state.active] : null;
     const from = count ? slides[state.active].frame : null;
-    const to = count ? indexFrames[hero[state.active]] : null;
+    const to = activeItem && activeItem.type === "piece" ? indexFrames[activeItem.i] : null;
     indexFrames.forEach((f) => f && f.parentElement.classList.toggle("is-hero", f === to));
     const morph = canMorph() && onScreen(from) && to;
     const update = () => {
@@ -1566,7 +1638,8 @@
   }
   function closeIndex() {
     if (state.view !== "index" || state.busy) return;
-    const from = count ? indexFrames[hero[state.active]] : null;
+    const activeItem = count ? heroItems[state.active] : null;
+    const from = activeItem && activeItem.type === "piece" ? indexFrames[activeItem.i] : null;
     const to = count ? slides[state.active].frame : null;
     const update = () => {
       showView("showcase");
@@ -1589,6 +1662,93 @@
   }
   el.counter.addEventListener("click", openIndex);
   el.indexBack.addEventListener("click", leaveIndex);
+
+  // ------------------------------------------------------------ collection ---
+
+  // One named collection's pieces (ring, earrings, pendant) shown together,
+  // opened from its card in the Collections row. Tapping a piece inside
+  // opens it like any other piece, with Back returning here.
+  const collectionFrames = []; // by piece index, while a collection is open
+  let openCollectionIndex = -1;
+
+  function buildCollectionGrid(ci) {
+    const coll = collections[ci];
+    el.collectionName.textContent = coll.label;
+    el.collectionCount.textContent = pad(coll.pieces.length);
+    let n = 0;
+    el.collectionGrid.replaceChildren(
+      ...coll.pieces.map((i) => {
+        const piece = pieces[i];
+        const li = document.createElement("li");
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "index-item";
+        b.style.setProperty("--i", String(n++));
+        const frame = document.createElement("span");
+        frame.className = "index-frame";
+        const img = document.createElement("img");
+        img.alt = "";
+        img.draggable = false;
+        img.decoding = "async";
+        watchImage(img);
+        img.src = piece.images[0];
+        frame.append(img);
+        const name = document.createElement("span");
+        name.className = "index-name";
+        name.textContent = piece.name;
+        b.append(frame, name);
+        if (piece.ref) {
+          const ref = document.createElement("span");
+          ref.className = "index-ref";
+          setRef(ref, piece.ref);
+          b.append(ref);
+        }
+        b.addEventListener("click", () => open(i, { origin: "collection" }));
+        collectionFrames[i] = frame;
+        li.append(b);
+        return li;
+      }),
+    );
+  }
+
+  function openCollection(ci, { fromHero = false } = {}) {
+    if (state.busy || state.view !== "showcase" || !collections[ci]) return;
+    if (fromHero) {
+      const k = heroItems.findIndex((item) => item.type === "collection" && item.ci === ci);
+      if (k >= 0 && state.active !== k) {
+        state.active = k;
+        layout(true);
+        caption(true);
+      }
+    }
+    remember("pushState", { hugCollection: ci, pushed: true }, "", location.pathname + location.search);
+    openCollectionIndex = ci;
+    buildCollectionGrid(ci);
+    const update = () => {
+      showView("collection");
+      el.collection.scrollTop = 0;
+      el.collection.classList.remove("is-in", "is-fading");
+      void el.collection.offsetWidth;
+      el.collection.classList.add("is-in", "is-fading");
+      el.collectionBack.focus({ preventScroll: true });
+    };
+    if (!canMorph()) return update();
+    state.busy = true;
+    transition("collection", update).finally(() => (state.busy = false));
+  }
+  function leaveCollection() {
+    if (history.state && history.state.hugCollection !== undefined) history.back();
+    else closeCollection();
+  }
+  function closeCollection() {
+    if (state.view !== "collection" || state.busy) return;
+    openCollectionIndex = -1;
+    const update = () => showView("showcase");
+    if (!canMorph()) return update();
+    state.busy = true;
+    transition("collection", update).finally(() => (state.busy = false));
+  }
+  el.collectionBack.addEventListener("click", leaveCollection);
 
   // --------------------------------------------------------------- zoom ---
 
@@ -2048,12 +2208,17 @@
       if (key === "ArrowRight" || key === "ArrowLeft") {
         go(key === "ArrowRight" ? 1 : -1);
         if (el.stage.contains(document.activeElement)) slides[state.active].button.focus({ preventScroll: true });
-      } else if (key === "Enter" && count && (document.activeElement === document.body || !document.activeElement))
-        open(hero[state.active], { origin: "hero" });
-      else if (key === "g" || key === "G") openIndex();
+      } else if (key === "Enter" && count && (document.activeElement === document.body || !document.activeElement)) {
+        const item = heroItems[state.active];
+        if (item.type === "collection") openCollection(item.ci, { fromHero: true });
+        else open(item.i, { origin: "hero" });
+      } else if (key === "g" || key === "G") openIndex();
       else return;
     } else if (state.view === "index") {
       if (key === "Escape" || key === "Backspace" || key === "g" || key === "G") leaveIndex();
+      else return;
+    } else if (state.view === "collection") {
+      if (key === "Escape" || key === "Backspace") leaveCollection();
       else return;
     } else {
       if (key === "ArrowRight") step(1);
