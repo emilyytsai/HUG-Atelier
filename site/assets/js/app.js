@@ -88,7 +88,6 @@
     }
   };
   const total = pieces.length;
-  const hero = catalog.hero || pieces.map((_, i) => i);
   const categories = catalog.categories || [];
   const collections = catalog.collections || [];
   // A collection's thumbnail is its pendant, since that is the piece that
@@ -99,13 +98,10 @@
     const pendant = pendantCat && ids.find((i) => pieces[i].category === pendantCat.id);
     return pieces[pendant !== undefined ? pendant : ids[0]];
   };
-  // The main carousel leads with every collection, then every piece that
-  // does not belong to one, so a piece is never shown there twice over.
-  const heroPieces = hero.filter((i) => !pieces[i].collection);
-  const heroItems = [
-    ...collections.map((_, ci) => ({ type: "collection", ci })),
-    ...heroPieces.map((i) => ({ type: "piece", i })),
-  ];
+  // The main carousel: catalog.js has already curated and ordered this down
+  // to the priciest collections and standalone pieces.
+  const heroItems = catalog.hero || [];
+  const heroPieces = heroItems.filter((item) => item.type === "piece").map((item) => item.i);
   const count = heroItems.length;
   const heroSlideOf = (i) => heroItems.findIndex((item) => item.type === "piece" && item.i === i);
 
@@ -691,7 +687,7 @@
     li.className = "rise";
     li.style.setProperty("--i", String(k + 3));
     const tag = document.createElement(badge.at ? "button" : "span");
-    tag.className = "badge glass";
+    tag.className = badge.at ? "badge glass" : "badge";
     if (badge.at) {
       tag.type = "button";
       tag.setAttribute("aria-pressed", "false");
@@ -1275,7 +1271,18 @@
           card.li.setAttribute("aria-hidden", "true");
           card.button.tabIndex = -1;
         } else {
-          card.button.addEventListener("focus", () => reveal(k, true));
+          // Keyboard tabbing onto a card should glide it into view; a click
+          // also focuses the button, but that's about to open the piece
+          // anyway, so the row shouldn't scroll under it first.
+          card.button.addEventListener("focus", (e) => {
+            let visible = false;
+            try {
+              visible = e.target.matches(":focus-visible");
+            } catch {
+              /* older browser */
+            }
+            if (visible) reveal(k, true);
+          });
         }
         if (!registry[i]) registry[i] = { row, k, frames: [] };
         registry[i].frames.push(card.frame);

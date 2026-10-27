@@ -800,40 +800,55 @@
     letter-spacing: 0.01em;
     font-variant-numeric: tabular-nums;
   }
+  /* A plain spec list: a dot and a line of text, nothing that reads as a
+     control. Only a badge that can glide the photo to a spot (button.badge,
+     below) earns the pill/glass look of an actual button. */
   .badges {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
-
-    @variant split {
-      gap: 0.625rem;
-    }
+    column-gap: 1.5rem;
+    row-gap: 0.6rem;
   }
   .badge {
     display: inline-flex;
-    align-items: center;
+    align-items: baseline;
+    gap: 0.65rem;
+    font-size: 0.6875rem;
+    font-weight: 450;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--color-taupe);
+
+    @variant split {
+      font-size: 0.75rem;
+    }
+  }
+  .badge::before {
+    content: "";
+    width: 0.3rem;
+    height: 0.3rem;
+    flex: none;
+    align-self: center;
+    border-radius: 999px;
+    background: rgb(26 26 26 / 0.32);
+  }
+  button.badge {
     min-height: 2.75rem;
     padding: 0 1rem;
     border-radius: 999px;
-    font-size: 0.625rem;
-    font-weight: 450;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    white-space: nowrap;
-
-    @variant split {
-      min-height: 2.75rem;
-      padding: 0 1rem;
-      font-size: 0.6875rem;
-      letter-spacing: 0.16em;
-    }
-  }
-  button.badge {
-    gap: 0.5rem;
     color: inherit;
     transition:
       scale 500ms var(--ease-silk),
       background 500ms var(--ease-silk);
+
+    @variant split {
+      min-height: 2.75rem;
+      padding: 0 1rem;
+    }
+  }
+  button.badge::before {
+    display: none;
   }
   button.badge:active {
     scale: 0.97;
@@ -1506,11 +1521,16 @@
   .piece-name {
     font-size: clamp(1.6rem, 8.5vh, 2.6rem);
   }
+  .badges {
+    gap: 0.45rem;
+  }
   .badge {
+    font-size: 0.5625rem;
+    letter-spacing: 0.1em;
+  }
+  button.badge {
     min-height: 2.5rem;
     padding: 0 0.95rem;
-    font-size: 0.5625rem;
-    letter-spacing: 0.14em;
   }
   .nav {
     position: relative;

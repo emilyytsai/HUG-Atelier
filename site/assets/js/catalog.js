@@ -5,7 +5,7 @@
   "use strict";
 
   const DEFAULT_BADGES = ["Luxury-Grade Silver", "Organic Shape", "Freshwater Pearls"];
-  const PIECE_KEYS = ["name", "images", "image", "alt", "ref", "badges", "price", "hidden", "id", "orbit", "category", "collection", "featured"];
+  const PIECE_KEYS = ["name", "images", "image", "alt", "ref", "badges", "price", "hidden", "id", "orbit", "category", "collection"];
   const SETTING_KEYS = ["autoRotateSeconds", "photoSeconds", "idleReturnSeconds", "zoom"];
   const PHOTO = /^assets\/products\/(?:[^/]+\/)*[^/]+\.(?:webp|avif|jpe?g|png)$/i;
 
@@ -22,6 +22,38 @@
       }
     }
     return row[b.length];
+  }
+
+  // A plain, deterministic hash (cyrb53): the same id always lands on the
+  // same number, so the shelf order below is fixed across visits without
+  // storing it anywhere.
+  function hashId(str) {
+    let h1 = 0xdeadbeef ^ str.length;
+    let h2 = 0x41c6ce57 ^ str.length;
+    for (let i = 0; i < str.length; i++) {
+      const ch = str.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+  }
+  // A fixed-but-shuffled order, stable across visits (seeded by each item's
+  // own id, never Math.random), with the few priciest items pulled into the
+  // middle so the shelf never opens on its cheapest handful.
+  const shuffleKey = (id) => hashId(`hug-shelf-${id}`);
+  function arrangeCentered(items, price, id, center) {
+    const shuffled = (list) => list.slice().sort((a, b) => shuffleKey(id(a)) - shuffleKey(id(b)));
+    if (items.length <= center) return shuffled(items);
+    const top = items
+      .slice()
+      .sort((a, b) => price(b) - price(a))
+      .slice(0, center);
+    const topIds = new Set(top.map(id));
+    const rest = shuffled(items.filter((it) => !topIds.has(id(it))));
+    const mid = Math.floor(rest.length / 2);
+    return [...rest.slice(0, mid), ...top, ...rest.slice(mid)];
   }
 
   function readCatalog(source, loadError) {
@@ -158,7 +190,6 @@
     const collByKey = new Map();
 
     const pieces = [];
-    const featured = [];
     const seen = new Set();
     const fallback = cleanBadges(source && source.defaultBadges, "defaultBadges") || cleanBadges(DEFAULT_BADGES, "");
     if (source && !Array.isArray(source.pieces)) note("products.js: pieces should be a list: pieces: [ { ... }, { ... }, ]", true);
@@ -213,11 +244,9 @@
         category = catByKey.get(slugify(label)) || null;
         if (!category) {
           const names = categories.map((c) => c.label).join(", ");
-          note(`${where}: category "${label}" is not in the categories list${names ? ` (${names})` : ""}. It shows in the main carousel only if featured.`);
+          note(`${where}: category "${label}" is not in the categories list${names ? ` (${names})` : ""}.`);
         }
       }
-      if (p.featured !== undefined && typeof p.featured !== "boolean") note(`${where}: featured should be true or false, without quotes.`);
-      if (p.featured === true || p.featured === "true") featured.push(pieces.length);
       if (category) category.pieces.push(pieces.length);
 
       let collection = null;
@@ -261,10 +290,13 @@
       );
     });
 
-    // The main carousel shows the featured pieces, or every piece if none is.
-    const hero = featured.length ? featured : pieces.map((_, i) => i);
+    const priceOfPiece = (i) => pieces[i].price ?? -Infinity;
+
+    // Each row: the shelf order above, applied to that category's own pieces.
     categories.forEach((c) => {
       if (!c.pieces.length) note(`Category "${c.label}" has no pieces yet, so its carousel is not shown.`);
+      const order = arrangeCentered(c.pieces, priceOfPiece, (i) => pieces[i].id, 3);
+      c.pieces.splice(0, c.pieces.length, ...order);
       Object.freeze(c.pieces);
       Object.freeze(c);
     });
@@ -274,13 +306,45 @@
       Object.freeze(c.pieces);
       Object.freeze(c);
     });
+    // A collection's price, for ranking, is its priciest piece (the ring,
+    // say, next to its cheaper earrings and pendant).
+    const priceOfCollection = (c) => Math.max(...c.pieces.map(priceOfPiece));
+    const orderedCollections = arrangeCentered(collections, priceOfCollection, (c) => c.id, 3);
+
+    // The main carousel: the 5 priciest collections and the 6 priciest
+    // pieces that aren't part of one, the single priciest of those 11
+    // front and centre, the next two flanking it, the rest shelved in a
+    // fixed shuffle between them.
+    const standalone = pieces.map((_, i) => i).filter((i) => !pieces[i].collection);
+    const topCollections = orderedCollections
+      .map((c, ci) => ({ type: "collection", ci, price: priceOfCollection(c), key: `collection:${c.id}` }))
+      .sort((a, b) => b.price - a.price)
+      .slice(0, 5);
+    const topPieces = standalone
+      .map((i) => ({ type: "piece", i, price: priceOfPiece(i), key: `piece:${pieces[i].id}` }))
+      .sort((a, b) => b.price - a.price)
+      .slice(0, 6);
+    const heroCandidates = [...topCollections, ...topPieces];
+    const arranged =
+      heroCandidates.length <= 3
+        ? heroCandidates.slice().sort((a, b) => b.price - a.price)
+        : (() => {
+            const ranked = heroCandidates.slice().sort((a, b) => b.price - a.price);
+            const [first, second, third] = ranked;
+            const picked = new Set([first, second, third].map((e) => e.key));
+            const rest = heroCandidates
+              .filter((e) => !picked.has(e.key))
+              .sort((a, b) => shuffleKey(a.key) - shuffleKey(b.key));
+            return [first, second, ...rest, third];
+          })();
+    const hero = arranged.map(({ type, ci, i }) => (type === "collection" ? { type, ci } : { type, i }));
 
     return {
       settings,
       pieces: Object.freeze(pieces),
       hero: Object.freeze(hero),
       categories: Object.freeze(categories.filter((c) => c.pieces.length)),
-      collections: Object.freeze(collections),
+      collections: Object.freeze(orderedCollections),
       notes,
     };
   }
