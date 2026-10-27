@@ -114,6 +114,25 @@
     list: heroPieces, // the pieces the piece view steps through
   };
 
+  // A tap that opens or closes something while a transition is still playing
+  // is kept and played the moment it ends, rather than dropped. Only the
+  // latest one counts.
+  let busy = false;
+  let afterBusy = null;
+  Object.defineProperty(state, "busy", {
+    get: () => busy,
+    set(on) {
+      busy = on;
+      if (on || !afterBusy) return;
+      const run = afterBusy;
+      afterBusy = null;
+      setTimeout(run, 0);
+    },
+  });
+  const later = (run) => {
+    afterBusy = run;
+  };
+
   // ------------------------------------------------------------- images ---
 
   // "Nº 001": the wide caption tracking would float the º away from the N,
@@ -369,12 +388,37 @@
   // Drag (mouse or finger). On release the slides carry on from where the
   // finger left them with an ease-out, so a flick feels continuous; a long
   // drag moves more than one place.
-  const drag = { id: null, x: 0, y: 0, dx: 0, moved: false, suppressClick: false, trail: [] };
+  const drag = { id: null, x: 0, y: 0, dx: 0, base: 0, caught: false, moved: false, suppressClick: false, trail: [] };
   let releaseTimer = 0;
+
+  // How far the photo on show still is from its place while the slides glide
+  // there (0 once settled). Its transform ends in translateX(... + --drag),
+  // which puts its centre on the stage's centre when it has arrived.
+  function glideOffset() {
+    const s = slides[state.active];
+    if (!s) return 0;
+    const m = new DOMMatrix(getComputedStyle(s.button).transform);
+    return m.m41 + s.button.offsetWidth / 2 - (parseFloat(el.track.style.getPropertyValue("--drag")) || 0);
+  }
+  // Freeze the slides where they are, the finger now holding them.
+  function catchGlide() {
+    const off = glideOffset();
+    if (Math.abs(off) < 2) return false;
+    clearTimeout(releaseTimer);
+    el.track.classList.remove("is-releasing");
+    el.track.classList.add("is-dragging");
+    el.track.style.setProperty("--drag", `${off.toFixed(1)}px`);
+    drag.base = off;
+    return true;
+  }
 
   el.stage.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || count < 2 || state.view !== "showcase") return;
-    Object.assign(drag, { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, moved: false, trail: [{ t: e.timeStamp, x: e.clientX }] });
+    Object.assign(drag, { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, base: 0, moved: false, trail: [{ t: e.timeStamp, x: e.clientX }] });
+    // Touching the carousel while it glides stops it under the finger, as a
+    // hand would, instead of letting the slides jump to where they were going.
+    drag.caught = catchGlide();
+    if (drag.caught) el.stage.setPointerCapture(e.pointerId);
     hold("drag", true);
   });
   el.stage.addEventListener("pointermove", (e) => {
@@ -382,22 +426,37 @@
     const dx = e.clientX - drag.x;
     const dy = e.clientY - drag.y;
     if (!drag.moved) {
-      if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
+      if (Math.abs(dx) < (drag.caught ? 2 : 8) || Math.abs(dx) < Math.abs(dy)) return;
       drag.moved = true;
-      el.stage.setPointerCapture(e.pointerId);
-      el.track.classList.remove("is-releasing");
-      el.track.classList.add("is-dragging");
+      if (!drag.caught) {
+        el.stage.setPointerCapture(e.pointerId);
+        el.track.classList.remove("is-releasing");
+        el.track.classList.add("is-dragging");
+      }
     }
     drag.trail.push({ t: e.timeStamp, x: e.clientX });
     while (drag.trail.length > 2 && e.timeStamp - drag.trail[0].t > 90) drag.trail.shift();
     drag.dx = dx;
-    el.track.style.setProperty("--drag", `${dx.toFixed(1)}px`);
+    el.track.style.setProperty("--drag", `${(drag.base + dx).toFixed(1)}px`);
   });
   const endDrag = (e) => {
     if (e.pointerId !== drag.id) return;
     drag.id = null;
     hold("drag", false);
-    if (!drag.moved) return;
+    if (!drag.moved) {
+      // Caught and let go without moving: carry on to where it was going.
+      if (!drag.caught) return;
+      drag.caught = false;
+      el.track.classList.remove("is-dragging");
+      el.track.classList.add("is-releasing");
+      el.track.style.setProperty("--drag", "0px");
+      restartTimer();
+      releaseTimer = setTimeout(() => el.track.classList.remove("is-releasing"), 900);
+      drag.suppressClick = true;
+      setTimeout(() => (drag.suppressClick = false), 0);
+      return;
+    }
+    drag.caught = false;
     const a = drag.trail[0];
     const b = drag.trail[drag.trail.length - 1];
     const v = b && a && b.t > a.t ? (b.x - a.x) / (b.t - a.t) : 0;
@@ -881,7 +940,8 @@
   const homeOf = (i) => (heroPieces.includes(i) ? "hero" : cards[i] ? "row" : "index");
 
   function open(i, { push = true, animate = true, origin = homeOf(i), from = null, focusBack = true } = {}) {
-    if (state.busy || !pieces[i]) return;
+    if (!pieces[i]) return;
+    if (state.busy) return later(() => open(i, arguments[1]));
     if (state.view === "focus") return goTo(i);
     const piece = pieces[i];
     if (push) remember("pushState", { hug: piece.id, pushed: true }, "", `#${piece.id}`);
@@ -933,7 +993,8 @@
   }
 
   function close({ animate = true } = {}) {
-    if (state.view !== "focus" || state.busy) return;
+    if (state.busy) return later(() => close(arguments[0]));
+    if (state.view !== "focus") return;
     const i = state.focus;
     const origin = state.origin;
     endZoom(true);
@@ -1132,7 +1193,7 @@
     b.append(count);
     b.addEventListener("click", () => {
       if (rowDrag.suppress) return;
-      openCollection(ci);
+      openCollection(ci, { from: frame });
     });
     li.append(b);
     return { li, button: b, frame };
@@ -1603,7 +1664,8 @@
   }
   // The carousel photo morphs into its place in the grid, and back.
   function openIndex() {
-    if (state.busy || state.view !== "showcase" || !total) return;
+    if (state.busy) return later(openIndex);
+    if (state.view !== "showcase" || !total) return;
     // Its own history entry, so the browser's back button closes it.
     remember("pushState", { hugIndex: true, pushed: true }, "", location.pathname + location.search);
     buildIndex();
@@ -1637,7 +1699,8 @@
     else closeIndex();
   }
   function closeIndex() {
-    if (state.view !== "index" || state.busy) return;
+    if (state.busy) return later(closeIndex);
+    if (state.view !== "index") return;
     const activeItem = count ? heroItems[state.active] : null;
     const from = activeItem && activeItem.type === "piece" ? indexFrames[activeItem.i] : null;
     const to = count ? slides[state.active].frame : null;
@@ -1711,8 +1774,13 @@
     );
   }
 
-  function openCollection(ci, { fromHero = false } = {}) {
-    if (state.busy || state.view !== "showcase" || !collections[ci]) return;
+  // Like the index: the photo that was tapped (the main carousel's, or the
+  // card's in the Collections row) morphs into the first piece in the grid,
+  // and back into it on the way out.
+  let collectionFrom = null;
+  function openCollection(ci, { fromHero = false, from = null } = {}) {
+    if (state.busy) return later(() => openCollection(ci, { fromHero, from }));
+    if (state.view !== "showcase" || !collections[ci]) return;
     if (fromHero) {
       const k = heroItems.findIndex((item) => item.type === "collection" && item.ci === ci);
       if (k >= 0 && state.active !== k) {
@@ -1720,33 +1788,64 @@
         layout(true);
         caption(true);
       }
+      if (k >= 0) from = slides[k].frame;
     }
     remember("pushState", { hugCollection: ci, pushed: true }, "", location.pathname + location.search);
     openCollectionIndex = ci;
     buildCollectionGrid(ci);
+    const to = collectionFrames[collections[ci].pieces[0]] || null;
+    collectionFrom = from;
+    const morph = canMorph() && onScreen(from) && to;
+    if (to) to.parentElement.classList.toggle("is-hero", Boolean(morph));
     const update = () => {
       showView("collection");
       el.collection.scrollTop = 0;
       el.collection.classList.remove("is-in", "is-fading");
       void el.collection.offsetWidth;
-      el.collection.classList.add("is-in", "is-fading");
+      el.collection.classList.add("is-in");
+      if (!morph) el.collection.classList.add("is-fading");
+      if (from) from.style.viewTransitionName = "";
+      if (morph) to.style.viewTransitionName = "hero";
       el.collectionBack.focus({ preventScroll: true });
     };
     if (!canMorph()) return update();
     state.busy = true;
-    transition("collection", update).finally(() => (state.busy = false));
+    if (morph) from.style.viewTransitionName = "hero";
+    transition("collection", update).finally(() => {
+      if (to) to.style.viewTransitionName = "";
+      state.busy = false;
+    });
   }
   function leaveCollection() {
     if (history.state && history.state.hugCollection !== undefined) history.back();
     else closeCollection();
   }
   function closeCollection() {
-    if (state.view !== "collection" || state.busy) return;
+    if (state.busy) return later(closeCollection);
+    if (state.view !== "collection") return;
+    const ci = openCollectionIndex;
     openCollectionIndex = -1;
-    const update = () => showView("showcase");
-    if (!canMorph()) return update();
+    const from = collections[ci] ? collectionFrames[collections[ci].pieces[0]] : null;
+    const to = collectionFrom;
+    collectionFrom = null;
+    const update = () => {
+      showView("showcase");
+      if (from) from.style.viewTransitionName = "";
+      if (to && onScreen(to)) to.style.viewTransitionName = "hero";
+    };
+    const done = () => {
+      if (to) to.style.viewTransitionName = "";
+      state.busy = false;
+      if (!el.stage.matches(":hover")) state.holds.delete("hover");
+      restartTimer();
+    };
+    if (!canMorph()) {
+      update();
+      return done();
+    }
     state.busy = true;
-    transition("collection", update).finally(() => (state.busy = false));
+    if (from && to && onScreen(from)) from.style.viewTransitionName = "hero";
+    transition("collection", update).finally(done);
   }
   el.collectionBack.addEventListener("click", leaveCollection);
 

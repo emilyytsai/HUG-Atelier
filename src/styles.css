@@ -55,6 +55,9 @@
 
   --ease-silk: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-glide: cubic-bezier(0.65, 0, 0.35, 1);
+  /* View changes: the photo's journey, and the quick exit of what it leaves. */
+  --vt-morph: 620ms;
+  --vt-quick: 280ms;
 }
 
 /* How far each of the two strokes round a hovered button has travelled. */
@@ -214,7 +217,8 @@
     }
   }
 
-  /* Ambient nacre light behind everything. */
+  /* Ambient nacre light behind everything. It holds still: a drifting
+     full-screen layer makes every frosted-glass control re-blur each frame. */
   .aura {
     position: fixed;
     inset: -25vmax;
@@ -225,7 +229,6 @@
       radial-gradient(34vmax 26vmax at 80% 26%, rgb(241 221 187 / 0.2), transparent 70%),
       radial-gradient(42vmax 30vmax at 62% 84%, rgb(211 203 240 / 0.22), transparent 70%),
       radial-gradient(30vmax 24vmax at 30% 80%, rgb(241 221 187 / 0.2), transparent 70%);
-    animation: aura-drift 48s var(--ease-glide) infinite alternate;
   }
 
   /* ------------------------------------------------------------ showcase */
@@ -341,9 +344,11 @@
       opacity 1150ms var(--ease-glide);
     will-change: transform;
 
+    /* Phones: a taller frame, so the photo fills the height it is given
+       rather than floating in empty cream. */
     @media (orientation: portrait) and (max-width: 639px) {
-      --w: min(75cqh, 92cqw);
-      aspect-ratio: 3 / 4;
+      --w: min(62cqh, 92cqw);
+      aspect-ratio: 2 / 3;
     }
     @media (orientation: portrait) and (min-width: 640px) {
       --w: min(80cqh, 88cqw);
@@ -391,14 +396,10 @@
     opacity: 0;
     transition:
       transform 800ms var(--ease-silk),
-      opacity 1000ms var(--ease-silk),
-      filter 1150ms var(--ease-glide);
+      opacity 1000ms var(--ease-silk);
   }
   .slide-frame.is-loaded img {
     opacity: 1;
-  }
-  .slide:not(.is-active) .slide-frame img {
-    filter: saturate(0.9) brightness(1.03);
   }
   @media (hover: hover) and (pointer: fine) {
     .slide:hover .slide-frame img {
@@ -657,6 +658,7 @@
   }
 
   .dots {
+    view-transition-name: dots;
     position: absolute;
     right: max(1.25rem, env(safe-area-inset-right));
     bottom: max(1.25rem, env(safe-area-inset-bottom));
@@ -668,15 +670,13 @@
   }
   .dot {
     position: relative;
-    width: 1.5rem;
+    /* Every slot is wide enough for the current mark's bar, so the bar
+       grows inside its own slot and its neighbours never shuffle sideways. */
+    width: 1.875rem;
     height: 1.75rem;
     border-radius: 999px;
     display: grid;
     place-items: center;
-    transition: width 500ms var(--ease-silk);
-  }
-  .dot[aria-current="true"] {
-    width: 2.25rem;
   }
   /* Small to look at, 44 px to tap. */
   .dot::after {
@@ -826,12 +826,6 @@
       padding: 0 1rem;
       font-size: 0.6875rem;
       letter-spacing: 0.16em;
-    }
-  }
-  @media (orientation: landscape) and (min-width: 640px) and (max-width: 1299px) and (min-height: 521px) {
-    .badges {
-      flex-direction: column;
-      align-items: flex-start;
     }
   }
   button.badge {
@@ -1454,15 +1448,15 @@
 
   /* Staggered entrance for the panel text. */
   .focus.is-in .rise {
-    animation: rise 1000ms var(--ease-silk) both;
-    animation-delay: calc(240ms + var(--i, 0) * 90ms);
+    animation: rise 760ms var(--ease-silk) both;
+    animation-delay: calc(180ms + var(--i, 0) * 60ms);
   }
   .focus.is-in.via-morph .rise {
-    animation-delay: calc(560ms + var(--i, 0) * 90ms);
+    animation-delay: calc(240ms + var(--i, 0) * 60ms);
   }
   .focus.is-in .fade {
-    animation: fade 1200ms var(--ease-silk) both;
-    animation-delay: 500ms;
+    animation: fade 760ms var(--ease-silk) both;
+    animation-delay: 320ms;
   }
   .focus.is-entering {
     animation: fade 700ms var(--ease-silk) both;
@@ -1528,14 +1522,6 @@
 
 /* ------------------------------------------------------------- keyframes */
 
-@keyframes aura-drift {
-  from {
-    transform: translate3d(-2%, -1%, 0) rotate(0deg);
-  }
-  to {
-    transform: translate3d(2%, 2%, 0) rotate(8deg);
-  }
-}
 @keyframes rise {
   from {
     opacity: 0;
@@ -1589,22 +1575,30 @@
 
 /* -------------------------------------------------------- view transitions */
 
+/* One timing language for every view change: the photo travels on an
+   ease-out (moving from the first frame, settling softly), the page around
+   it crossfades with the new view arriving while the old one leaves. */
 ::view-transition-group(hero) {
-  animation-duration: 950ms;
-  animation-timing-function: var(--ease-glide);
+  /* The photo's frame clips it, as on the page: nothing beside it (the
+     neighbouring photos, the dots) is carried along. */
+  overflow: clip;
+  border-radius: 2px;
+  animation-duration: var(--vt-morph);
+  animation-timing-function: var(--ease-silk);
 }
 ::view-transition-old(hero),
 ::view-transition-new(hero) {
+  width: 100%;
   height: 100%;
   object-fit: cover;
-  animation-duration: 950ms;
-  animation-timing-function: var(--ease-glide);
+  animation-duration: var(--vt-morph);
+  animation-timing-function: var(--ease-silk);
 }
 ::view-transition-old(root) {
-  animation: 520ms var(--ease-glide) both fade reverse;
+  animation: var(--vt-quick) var(--ease-glide) both fade reverse;
 }
 ::view-transition-new(root) {
-  animation: 760ms var(--ease-silk) 180ms both fade;
+  animation: var(--vt-morph) var(--ease-silk) 60ms both fade;
 }
 
 html[data-vt="next"]::view-transition-group(hero),
@@ -1612,40 +1606,54 @@ html[data-vt="prev"]::view-transition-group(hero) {
   animation: none;
 }
 /* Opening and closing: one photo travels, rather than two differently
-   cropped copies cross-fading (they disagree when the frame shapes differ). */
+   cropped copies cross-fading (they disagree when the frame shapes differ).
+   It is always the larger, sharper of the two captures. */
 html[data-vt="open"]::view-transition-old(hero),
-html[data-vt="close"]::view-transition-old(hero) {
+html[data-vt="close"]::view-transition-new(hero) {
   animation: none;
   opacity: 0;
 }
-html[data-vt="open"]::view-transition-new(hero) {
+html[data-vt="open"]::view-transition-new(hero),
+html[data-vt="close"]::view-transition-old(hero) {
   animation: none;
 }
-html[data-vt="close"]::view-transition-group(hero),
-html[data-vt="close"]::view-transition-old(hero),
-html[data-vt="close"]::view-transition-new(hero) {
-  animation-duration: 720ms;
-  animation-timing-function: var(--ease-silk);
-}
+/* Paging: the old photo is mostly gone before the new one shows, so the two
+   are never seen half-transparent over each other. */
 html[data-vt="next"]::view-transition-old(hero) {
-  animation: 700ms var(--ease-glide) both vt-out-left;
+  animation: var(--vt-quick) cubic-bezier(0.4, 0, 1, 1) both vt-out-left;
 }
 html[data-vt="next"]::view-transition-new(hero) {
-  animation: 900ms var(--ease-silk) 120ms both vt-in-right;
+  animation: var(--vt-morph) var(--ease-silk) 180ms both vt-in-right;
 }
 html[data-vt="prev"]::view-transition-old(hero) {
-  animation: 700ms var(--ease-glide) both vt-out-right;
+  animation: var(--vt-quick) cubic-bezier(0.4, 0, 1, 1) both vt-out-right;
 }
 html[data-vt="prev"]::view-transition-new(hero) {
-  animation: 900ms var(--ease-silk) 120ms both vt-in-left;
+  animation: var(--vt-morph) var(--ease-silk) 180ms both vt-in-left;
 }
 html[data-vt="next"]::view-transition-old(root),
 html[data-vt="prev"]::view-transition-old(root) {
-  animation: 400ms var(--ease-glide) both fade reverse;
+  animation: var(--vt-quick) var(--ease-glide) both fade reverse;
 }
 html[data-vt="next"]::view-transition-new(root),
 html[data-vt="prev"]::view-transition-new(root) {
-  animation: 500ms var(--ease-silk) both fade;
+  animation: var(--vt-morph) var(--ease-silk) 120ms both fade;
+}
+/* The photo dots travel on their own: they leave first and arrive once the
+   photo has nearly landed, rather than being stretched along with it. */
+::view-transition-old(dots) {
+  animation: 160ms ease-in both fade reverse;
+}
+::view-transition-new(dots) {
+  animation: var(--vt-quick) var(--ease-silk) calc(var(--vt-morph) - 160ms) both fade;
+}
+html[data-vt="next"]::view-transition-group(dots),
+html[data-vt="prev"]::view-transition-group(dots) {
+  animation-duration: var(--vt-quick);
+}
+html[data-vt="next"]::view-transition-new(dots),
+html[data-vt="prev"]::view-transition-new(dots) {
+  animation: var(--vt-quick) var(--ease-silk) both fade;
 }
 
 /* ------------------------------------------------------------ touch screens */
@@ -1665,9 +1673,6 @@ html[data-vt="prev"]::view-transition-new(root) {
 /* ------------------------------------------------------------ reduced motion */
 
 @media (prefers-reduced-motion: reduce) {
-  .aura {
-    animation: none;
-  }
   .menu-glass,
   .menu-panel,
   .menu.is-open .menu-panel {
