@@ -227,7 +227,9 @@
           const key = slugify(label);
           collection = collByKey.get(key);
           if (!collection) {
-            collection = { id: key, label, pieces: [] };
+            // The grouping name is "Sun Blossom"; its title on screen reads
+            // "Sun Blossom Collection".
+            collection = { id: key, label: `${label} Collection`, pieces: [] };
             collByKey.set(key, collection);
             collections.push(collection);
           }

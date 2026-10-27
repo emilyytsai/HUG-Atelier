@@ -91,7 +91,14 @@
   const hero = catalog.hero || pieces.map((_, i) => i);
   const categories = catalog.categories || [];
   const collections = catalog.collections || [];
-  const repPiece = (ci) => pieces[collections[ci].pieces[0]];
+  // A collection's thumbnail is its pendant, since that is the piece that
+  // best shows the design; failing that, whichever piece was added first.
+  const pendantCat = categories.find((c) => c.label.toLowerCase() === "pendants");
+  const repPiece = (ci) => {
+    const ids = collections[ci].pieces;
+    const pendant = pendantCat && ids.find((i) => pieces[i].category === pendantCat.id);
+    return pieces[pendant !== undefined ? pendant : ids[0]];
+  };
   // The main carousel leads with every collection, then every piece that
   // does not belong to one, so a piece is never shown there twice over.
   const heroPieces = hero.filter((i) => !pieces[i].collection);
@@ -577,7 +584,11 @@
         return { item, o, r };
       });
       const travel = n ? sum / n / dt : 0;
-      const goal = reduced ? 0 : Math.min(travel / 2600, 1);
+      // The draw-in belongs to the carousel's own passive rotation; a manual
+      // drag, trackpad swipe or flick-release skips it, so flicking through
+      // slides fast never shrinks and un-shrinks them.
+      const manual = el.track.classList.contains("is-dragging") || el.track.classList.contains("is-releasing");
+      const goal = reduced || manual ? 0 : Math.min(travel / 2600, 1);
       energy += (goal - energy) * (1 - Math.exp(-dt / (goal > energy ? 0.07 : 0.35)));
 
       // The intro starts once the photos beside the middle have loaded.
@@ -1165,8 +1176,8 @@
     return { li, button: b, frame };
   }
 
-  // A collection's card: the design's first piece (its ring) stands in for
-  // the whole set. Tapping it opens the collection view.
+  // A collection's card: its pendant stands in for the whole set. Tapping
+  // it opens the collection view.
   function makeCollectionCard(ci) {
     const coll = collections[ci];
     const piece = repPiece(ci);
