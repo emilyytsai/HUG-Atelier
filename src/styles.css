@@ -931,19 +931,20 @@
 
   /* --------------------------------------------------- categories menu */
 
+  /* Bottom-left, so it never sits over the photos at the top of the page. */
   .menu {
     position: fixed;
-    top: max(1.25rem, env(safe-area-inset-top));
+    bottom: max(1.25rem, env(safe-area-inset-bottom));
     left: max(1.25rem, env(safe-area-inset-left));
     z-index: 6;
     width: 2.75rem;
     height: 2.75rem;
   }
-  /* The bubble: a circle around the icon that grows into the panel. Its
+  /* The bubble: a circle around the icon that grows up into the panel. Its
      size comes from the list (--mw, --mh), measured as it opens. */
   .menu-glass {
     position: absolute;
-    top: 0;
+    bottom: 0;
     left: 0;
     width: var(--mw, 2.75rem);
     height: var(--mh, 2.75rem);
@@ -994,18 +995,18 @@
   .menu.is-open .menu-icon i {
     width: 100%;
   }
-  /* The list sits inside the bubble, under the icon, and fades in once the
+  /* The list sits inside the bubble, above the icon, and fades in once the
      bubble has room for it. */
   .menu-panel {
     position: absolute;
-    top: 2.75rem;
+    bottom: 2.75rem;
     left: 0;
     z-index: 1;
     min-width: 15.5rem;
-    padding: 0 0.5rem 0.5rem;
+    padding: 0.5rem 0.5rem 0;
     opacity: 0;
     visibility: hidden;
-    translate: 0 -0.35rem;
+    translate: 0 0.35rem;
     transition:
       opacity 200ms var(--ease-silk),
       translate 400ms var(--ease-silk),

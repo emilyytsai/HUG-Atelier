@@ -1373,7 +1373,7 @@
     // The bubble grows to the size of the list, measured as it opens.
     if (open) {
       el.menu.style.setProperty("--mw", `${menuPanel.offsetWidth}px`);
-      el.menu.style.setProperty("--mh", `${menuPanel.offsetTop + menuPanel.offsetHeight}px`);
+      el.menu.style.setProperty("--mh", `${el.menuButton.offsetHeight + menuPanel.offsetHeight}px`);
     } else {
       el.menu.style.removeProperty("--mw");
       el.menu.style.removeProperty("--mh");
