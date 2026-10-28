@@ -229,6 +229,7 @@
     z-index: 100;
     display: grid;
     place-items: center;
+    padding: 0 5vw;
     background: var(--color-cream);
     transition: opacity 500ms var(--ease-silk);
   }
@@ -237,13 +238,16 @@
     pointer-events: none;
   }
   .loader-mark {
+    gap: clamp(0.7rem, 2.5vw, 2rem);
     animation: loader-breathe 1800ms var(--ease-silk) infinite;
   }
+  /* Sized off both the width and the height, so it fills the screen the
+     same way on a short landscape phone as on a tall portrait one. */
   .loader-mark .logo-mark {
-    font-size: clamp(2.75rem, 7vw, 5rem);
+    font-size: clamp(3.5rem, min(27vw, 42vh), 46rem);
   }
   .loader-mark .logo-sub {
-    font-size: clamp(0.8125rem, 1.6vw, 1rem);
+    font-size: clamp(0.875rem, min(6.5vw, 10vh), 11rem);
   }
   @keyframes loader-breathe {
     0%,
@@ -1550,6 +1554,15 @@
   }
   .logo-mark {
     font-size: 1.2rem;
+  }
+  /* The loading cover has nothing else to share the screen with, so it
+     keeps its own fill-the-screen sizing instead of the header's compact
+     one above. */
+  .loader-mark .logo-mark {
+    font-size: clamp(3.5rem, min(27vw, 42vh), 46rem);
+  }
+  .loader-mark .logo-sub {
+    font-size: clamp(0.875rem, min(6.5vw, 10vh), 11rem);
   }
   .caption {
     gap: 0.5rem;
