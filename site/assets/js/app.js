@@ -488,7 +488,7 @@
   // the first one's coasting. Returns the distance so far in this swipe, and
   // whether this event began it.
   function swipeReader() {
-    const g = { sum: 0, peak: 0, dip: 0, quiet: 0, ended: true };
+    const g = { sum: 0, peak: 0, dip: 0, quiet: 0, ended: true, paused: true };
     return (e) => {
       const dx = e.deltaMode === 1 ? e.deltaX * 16 : e.deltaX;
       const a = Math.abs(dx);
@@ -498,13 +498,18 @@
       const again = g.dip < g.peak * 0.4 && a > g.dip * 2.5 && a > 6;
       const fresh = g.ended || turned || again;
       if (fresh) {
+        // Whether this swipe began after a real pause, as opposed to the
+        // stream merely speeding up again mid-coast: a caller that must
+        // never mistake one swipe's hesitation for a second one can wait
+        // for this instead of `fresh`.
+        g.paused = g.ended;
         g.ended = false;
         g.sum = 0;
         g.peak = g.dip = a;
       } else if (a >= g.peak) g.peak = g.dip = a;
       else g.dip = Math.min(g.dip, a);
       g.sum += dx;
-      return { sum: g.sum, fresh };
+      return { sum: g.sum, fresh, paused: g.paused };
     };
   }
 
@@ -2218,12 +2223,17 @@
     (e) => {
       if (state.view !== "focus" || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
       e.preventDefault();
-      const { sum, fresh } = readPhotoWheel(e);
+      const { sum, fresh, paused } = readPhotoWheel(e);
       if (fresh) photoWheelSpent = false;
       if (photoWheelSpent || state.busy || fingers.size || !canSwipe() || Math.abs(sum) < 30) return;
-      photoWheelSpent = true;
       const dir = sum > 0 ? 1 : -1;
       const to = swipeTo(dir);
+      // One swipe can cycle through this piece's own photos, but never
+      // carry on past them into the next piece too: that needs a swipe of
+      // its own, begun after this one has genuinely stopped, not just a
+      // hesitation mid-coast that the reader read as a second swipe.
+      if (to.piece !== undefined && !paused) return;
+      photoWheelSpent = true;
       const peek = peeks[dir > 0 ? 1 : 0];
       touch.to = dir > 0 ? [null, to] : [to, null];
       touch.rect = el.media.getBoundingClientRect();
