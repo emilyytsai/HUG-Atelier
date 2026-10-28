@@ -663,7 +663,7 @@
     state.image = imageIndex;
     resetDrag();
     setImage(el.mediaImg, piece.images[imageIndex], piece.alt);
-    el.ambientImg.src = piece.images[0];
+    setAmbient(piece.images[0]);
     setTone(piece.images[imageIndex]);
     setRef(el.ref, piece.ref);
     el.ref.hidden = !piece.ref;
@@ -814,6 +814,31 @@
       }
       tones.set(src, tone);
       apply(tone);
+    };
+    img.src = src;
+  }
+
+  // The panel's ambient glow blurs the photo past recognition, so a small
+  // copy of it reads the same there as the full original - drawn onto a
+  // canvas rather than loaded as an <img>, so the full-resolution photo is
+  // only ever decoded once per piece (cached for any later visit) instead
+  // of decoding it again, full-size, just for this.
+  const AMBIENT_MAX = 480;
+  const ambients = new Map();
+  function paintAmbient(img) {
+    const k = Math.min(1, AMBIENT_MAX / Math.max(img.naturalWidth, img.naturalHeight));
+    el.ambientImg.width = Math.round(img.naturalWidth * k);
+    el.ambientImg.height = Math.round(img.naturalHeight * k);
+    el.ambientImg.getContext("2d").drawImage(img, 0, 0, el.ambientImg.width, el.ambientImg.height);
+  }
+  function setAmbient(src) {
+    const cached = ambients.get(src);
+    if (cached) return paintAmbient(cached);
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => {
+      ambients.set(src, img);
+      if (pieces[state.focus] && pieces[state.focus].images[0] === src) paintAmbient(img);
     };
     img.src = src;
   }
@@ -1011,6 +1036,7 @@
   function slideHome() {
     const piece = pieces[state.focus];
     endZoom(true);
+    stopOrbit();
     const width = el.media.getBoundingClientRect().width;
     const src = piece.images[0];
     peeks[0].src = src;
@@ -2453,7 +2479,10 @@
     window.addEventListener(t, bumpIdle, { passive: true }),
   );
 
-  // Load every photo early so nothing appears half-loaded mid-presentation.
+  // Decode a piece's own photos once it is actually shown, so nothing in it
+  // appears half-loaded mid-presentation - not the whole catalog at once,
+  // which only pays for photos nobody has opened yet and, on a phone, can
+  // leave a lot of decoded bitmaps sitting in memory for no reason.
   const preloaded = new Set();
   function preload(list) {
     list.forEach((src) => {
@@ -2467,10 +2496,7 @@
   }
   const allImages = [...new Set(pieces.flatMap((p) => [...p.images, ...(p.orbit || [])]))];
   const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 600));
-  idle(() => {
-    preload(allImages);
-    buildIndex();
-  });
+  idle(buildIndex);
 
   // Offline copy for venues with weak wifi (needs https or localhost).
   const secure = location.protocol === "https:" || ["localhost", "127.0.0.1"].includes(location.hostname);
