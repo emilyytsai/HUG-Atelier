@@ -1004,9 +1004,45 @@
     }
   }
 
+  // The thumbnail only ever shows a piece's first photo, so that is the only
+  // photo the morph back into it can match. If a later photo is on show,
+  // slide back to the first one first, so closing reads as one continuous
+  // motion rather than the morph swapping to an unrelated photo mid-fade.
+  function slideHome() {
+    const piece = pieces[state.focus];
+    endZoom(true);
+    const width = el.media.getBoundingClientRect().width;
+    const src = piece.images[0];
+    peeks[0].src = src;
+    el.media.classList.add("is-swiping");
+    return new Promise((resolve) => {
+      const slide = () => {
+        el.media.style.setProperty("--dx", `${width + 2}px`);
+        setTimeout(() => {
+          setImage(el.mediaImg, src, piece.alt);
+          const swap = () => {
+            showImage(0, true);
+            resetDrag();
+            resolve();
+          };
+          el.mediaImg.decode().then(swap, swap);
+        }, 470);
+      };
+      peeks[0].decode().then(slide, slide);
+    });
+  }
+
   function close({ animate = true } = {}) {
     if (state.busy) return later(() => close(arguments[0]));
     if (state.view !== "focus") return;
+    if (animate && state.image !== 0 && pieces[state.focus].images.length > 1) {
+      state.busy = true;
+      slideHome().then(() => {
+        state.busy = false;
+        close({ animate });
+      });
+      return;
+    }
     const i = state.focus;
     const origin = state.origin;
     endZoom(true);
@@ -2074,13 +2110,13 @@
   }
 
   // Where a swipe on the photo leads: the piece's next or previous photo,
-  // or nowhere past its last or first - the photo only ever shows this
+  // looping round at its last or first - the photo only ever shows this
   // piece's own pictures. Moving to another piece is a gesture of its own,
   // off the photo (see the panel's wheel/drag below).
   function swipeTo(dir) {
     const piece = pieces[state.focus];
-    const k = state.image + dir;
-    if (k < 0 || k >= piece.images.length) return null;
+    if (piece.images.length < 2) return null;
+    const k = wrapIn(state.image + dir, piece.images.length);
     return { image: k, src: piece.images[k] };
   }
   const canSwipe = () => pieces[state.focus].images.length > 1;
@@ -2189,11 +2225,7 @@
     }
     if (touch.mode === "lens") moveLens(e.clientX, e.clientY);
     else if (touch.mode === "swipe") {
-      // Past the piece's last or first photo there is nowhere for the
-      // photo itself to go, so it only gives a little under the finger.
-      const has = touch.to[touch.dx < 0 ? 1 : 0];
-      const dx = has ? touch.dx : touch.dx * 0.25;
-      el.media.style.setProperty("--dx", `${dx.toFixed(1)}px`);
+      el.media.style.setProperty("--dx", `${touch.dx.toFixed(1)}px`);
     } else if (touch.mode === "pull") {
       const d = Math.max(0, touch.dy);
       const p = Math.min(1, d / 360);
@@ -2240,8 +2272,8 @@
   el.media.addEventListener("pointercancel", touchEnd);
 
   // Trackpad: a sideways swipe over the photo slides on to its next photo,
-  // one per swipe. Past its last or first photo, nothing happens here -
-  // moving to another piece is a swipe off the photo (see the panel below).
+  // one per swipe, looping round at its last or first - moving to another
+  // piece is a swipe off the photo (see the panel below).
   const readPhotoWheel = swipeReader();
   let photoWheelSpent = false;
   el.media.addEventListener(
