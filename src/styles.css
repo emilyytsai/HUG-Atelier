@@ -181,9 +181,12 @@
   .round.glass,
   .back.glass,
   button.badge,
-  .menu-glass {
+  .menu-glass,
+  .dots {
     transition:
+      opacity 400ms var(--ease-silk),
       scale 500ms var(--ease-silk),
+      color 500ms var(--ease-silk),
       background 500ms var(--ease-silk),
       box-shadow 500ms var(--ease-silk);
   }
@@ -561,11 +564,15 @@
     transition-duration: 250ms;
   }
 
-  /* The panel and Back fade as the photo is swiped or pulled away. */
-  .panel,
-  .focus > .back {
+  /* The panel and Back fade as the photo is swiped or pulled away. Back's
+     own transition (colour, background, box-shadow) lives with its other
+     tone transitions below, so a tone flip doesn't clobber this fade. */
+  .panel {
     opacity: calc(1 - var(--fade, 0));
     transition: opacity 400ms var(--ease-silk);
+  }
+  .focus > .back {
+    opacity: calc(1 - var(--fade, 0));
   }
 
   /* Touch loupe: a magnifying glass that floats above the finger. */
@@ -706,6 +713,7 @@
     background: var(--color-ink);
     transform-origin: left;
     transform: scaleX(0);
+    transition: background 400ms var(--ease-silk);
   }
   .dot[aria-current="true"] .dot-fill {
     transform: scaleX(1);
