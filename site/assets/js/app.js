@@ -65,6 +65,7 @@
     nav: $("nav"),
     focusCounter: $("focus-counter"),
     back: $("back"),
+    loader: $("loader"),
   };
 
   const motionQuery = matchMedia("(prefers-reduced-motion: reduce)");
@@ -2586,7 +2587,21 @@
   layout(true);
   caption(true);
   showNotes();
-  setTimeout(() => document.body.classList.remove("is-booting"), 2200);
+  // The loading cover steps aside once the first photo and the fonts are
+  // ready, not after a flat delay - but never later than a few seconds on a
+  // weak connection. Only then does the logo/caption entrance (is-booting)
+  // play, so it's actually seen instead of finishing underneath the cover.
+  const firstSlideReady = slides[0] ? slides[0].img.decode().catch(() => {}) : Promise.resolve();
+  const fontsReady = document.fonts ? document.fonts.ready.catch(() => {}) : Promise.resolve();
+  const revealTimeout = new Promise((resolve) => setTimeout(resolve, 3500));
+  Promise.race([Promise.all([firstSlideReady, fontsReady]), revealTimeout]).then(() => {
+    document.body.classList.add("is-booting");
+    el.loader.classList.add("is-done");
+    setTimeout(() => {
+      el.loader.hidden = true;
+      document.body.classList.remove("is-booting");
+    }, 2200);
+  });
   stayAwake();
   const startId = hashId();
   const startAt = pieces.findIndex((p) => p.id === startId);

@@ -220,6 +220,40 @@
     }
   }
 
+  /* Covers the page while the first photo and fonts are still loading, so
+     nothing appears half-built. Fades once they're ready (see app.js' boot
+     section), then steps out of the way entirely. */
+  .loader {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-items: center;
+    background: var(--color-cream);
+    transition: opacity 500ms var(--ease-silk);
+  }
+  .loader.is-done {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .loader-mark {
+    animation: loader-breathe 1800ms var(--ease-silk) infinite;
+  }
+  @keyframes loader-breathe {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .loader-mark {
+      animation: none;
+    }
+  }
+
   /* Ambient nacre light behind everything. It holds still: a drifting
      full-screen layer makes every frosted-glass control re-blur each frame. */
   .aura {
