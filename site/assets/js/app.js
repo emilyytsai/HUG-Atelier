@@ -1440,7 +1440,7 @@
         const { sum, fresh } = readWheel(e);
         if (fresh) wheelSteps = 0;
         const size = Math.abs(sum);
-        const steps = size < 30 ? 0 : Math.min(row.n, 1 + Math.floor((size - 30) / (row.pitch * 0.8)));
+        const steps = size < 30 ? 0 : Math.min(row.n, 1 + Math.floor((size - 30) / row.pitch));
         if (steps <= wheelSteps) return;
         nudge(Math.sign(sum) * (steps - wheelSteps));
         wheelSteps = steps;
