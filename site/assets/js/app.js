@@ -1134,6 +1134,50 @@
     if (b) step(Number(b.dataset.step));
   });
 
+  // The photo swipes between its own piece's photos only; swiping anywhere
+  // else in the piece view - the panel, its text, its badges - moves to the
+  // next or previous piece instead, one per swipe or drag.
+  const readPanelWheel = swipeReader();
+  let panelWheelSpent = false;
+  el.panel.addEventListener(
+    "wheel",
+    (e) => {
+      if (state.view !== "focus" || state.list.length < 2 || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      // Only the event that starts a genuinely new gesture re-arms the next
+      // step - `paused` alone stays true for the rest of that gesture too,
+      // and resetting on every one of those would let it step again as
+      // soon as the queued step's transition cleared `busy`, double-firing.
+      const { sum, fresh, paused } = readPanelWheel(e);
+      if (fresh && paused) panelWheelSpent = false;
+      if (panelWheelSpent || Math.abs(sum) < 30) return;
+      panelWheelSpent = true;
+      step(sum > 0 ? 1 : -1);
+    },
+    { passive: false },
+  );
+  let panelDrag = null;
+  el.panel.addEventListener("pointerdown", (e) => {
+    if (state.view !== "focus" || state.list.length < 2 || e.target.closest("button, a")) return;
+    panelDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
+  });
+  el.panel.addEventListener("pointermove", (e) => {
+    if (!panelDrag || e.pointerId !== panelDrag.id || panelDrag.moved) return;
+    const dx = e.clientX - panelDrag.x;
+    const dy = e.clientY - panelDrag.y;
+    if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy)) return;
+    panelDrag.moved = true;
+  });
+  const panelDragEnd = (e) => {
+    if (!panelDrag || e.pointerId !== panelDrag.id) return;
+    const { moved, x } = panelDrag;
+    const dx = e.clientX - x;
+    panelDrag = null;
+    if (moved && e.type !== "pointercancel" && Math.abs(dx) > 60) step(dx < 0 ? 1 : -1);
+  };
+  el.panel.addEventListener("pointerup", panelDragEnd);
+  el.panel.addEventListener("pointercancel", panelDragEnd);
+
   // --------------------------------------------------------- collections ---
 
   // One looping carousel per category below the main one. They move like
@@ -2029,29 +2073,24 @@
     return { vx: (b.x - a.x) / dt, vy: (b.y - a.y) / dt };
   }
 
-  // Where a swipe leads: the piece's next or previous photo, and past its
-  // last or first photo, the next or previous piece (or round to the other
-  // end of the photos when there is no other piece).
+  // Where a swipe on the photo leads: the piece's next or previous photo,
+  // or nowhere past its last or first - the photo only ever shows this
+  // piece's own pictures. Moving to another piece is a gesture of its own,
+  // off the photo (see the panel's wheel/drag below).
   function swipeTo(dir) {
     const piece = pieces[state.focus];
-    const n = piece.images.length;
     const k = state.image + dir;
-    if ((k >= 0 && k < n) || state.list.length < 2) {
-      const image = wrapIn(k, n);
-      return { image, src: piece.images[image] };
-    }
-    const i = neighbour(dir);
-    return { piece: i, src: pieces[i].images[0] };
+    if (k < 0 || k >= piece.images.length) return null;
+    return { image: k, src: piece.images[k] };
   }
-  const canSwipe = () => state.list.length > 1 || pieces[state.focus].images.length > 1;
+  const canSwipe = () => pieces[state.focus].images.length > 1;
 
   function startSwipe() {
     touch.to = [swipeTo(-1), swipeTo(1)];
-    peeks[0].src = touch.to[0].src;
-    peeks[1].src = touch.to[1].src;
+    touch.to.forEach((to, k) => to && (peeks[k].src = to.src));
     el.media.classList.add("is-swiping", "is-dragging");
   }
-  // Finish the slide the finger started, then swap in the new photo or piece.
+  // Finish the slide the finger started, then swap in the new photo.
   function commitSwipe(dir) {
     const to = touch.to[dir > 0 ? 1 : 0];
     const width = touch.rect.width;
@@ -2059,27 +2098,12 @@
     endZoom(true);
     el.media.classList.remove("is-dragging");
     el.media.style.setProperty("--dx", `${-dir * (width + 2)}px`);
-    if (to.piece === undefined) {
-      setTimeout(() => {
-        const piece = pieces[state.focus];
-        setImage(el.mediaImg, piece.images[to.image], piece.alt);
-        const swap = () => {
-          showImage(to.image, true);
-          resetDrag();
-          state.busy = false;
-          runQueued();
-        };
-        el.mediaImg.decode().then(swap, swap);
-      }, 470);
-      return;
-    }
-    const i = to.piece;
-    el.focus.style.setProperty("--fade", "0.6");
-    remember("replaceState", { hug: pieces[i].id, pushed: history.state?.pushed }, "", `#${pieces[i].id}`);
     setTimeout(() => {
-      setImage(el.mediaImg, pieces[i].images[0], pieces[i].alt);
+      const piece = pieces[state.focus];
+      setImage(el.mediaImg, piece.images[to.image], piece.alt);
       const swap = () => {
-        renderPiece(i);
+        showImage(to.image, true);
+        resetDrag();
         state.busy = false;
         runQueued();
       };
@@ -2163,13 +2187,13 @@
         showLens(e.clientX, e.clientY);
       }
     }
-    const width = touch.rect.width;
     if (touch.mode === "lens") moveLens(e.clientX, e.clientY);
     else if (touch.mode === "swipe") {
-      el.media.style.setProperty("--dx", `${touch.dx.toFixed(1)}px`);
-      // The name and badges fade only when the swipe leads to another piece.
-      const toPiece = touch.to[touch.dx < 0 ? 1 : 0].piece !== undefined;
-      el.focus.style.setProperty("--fade", toPiece ? Math.min(0.6, (Math.abs(touch.dx) / width) * 0.9).toFixed(3) : "0");
+      // Past the piece's last or first photo there is nowhere for the
+      // photo itself to go, so it only gives a little under the finger.
+      const has = touch.to[touch.dx < 0 ? 1 : 0];
+      const dx = has ? touch.dx : touch.dx * 0.25;
+      el.media.style.setProperty("--dx", `${dx.toFixed(1)}px`);
     } else if (touch.mode === "pull") {
       const d = Math.max(0, touch.dy);
       const p = Math.min(1, d / 360);
@@ -2201,10 +2225,11 @@
     touch.mode = "";
     if (mode === "lens") hideLens();
     else if (mode === "swipe") {
+      const dir = dx < 0 ? 1 : -1;
       const far = Math.abs(dx) > rect.width * 0.22;
       const flick = Math.abs(vx) > 0.45 && Math.sign(vx) === Math.sign(dx);
       const flickBack = Math.abs(vx) > 0.3 && Math.sign(vx) !== Math.sign(dx);
-      if (!cancelled && !flickBack && (far || flick)) commitSwipe(dx < 0 ? 1 : -1);
+      if (!cancelled && !flickBack && (far || flick) && touch.to[dir > 0 ? 1 : 0]) commitSwipe(dir);
       else settle();
     } else if (mode === "pull") {
       if (!cancelled && (dy > 120 || (dy > 30 && vy > 0.5))) back();
@@ -2214,8 +2239,9 @@
   el.media.addEventListener("pointerup", touchEnd);
   el.media.addEventListener("pointercancel", touchEnd);
 
-  // Trackpad: a sideways swipe over the photo slides on to the next photo
-  // (or piece) just as a finger would, one per swipe.
+  // Trackpad: a sideways swipe over the photo slides on to its next photo,
+  // one per swipe. Past its last or first photo, nothing happens here -
+  // moving to another piece is a swipe off the photo (see the panel below).
   const readPhotoWheel = swipeReader();
   let photoWheelSpent = false;
   el.media.addEventListener(
@@ -2223,16 +2249,12 @@
     (e) => {
       if (state.view !== "focus" || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
       e.preventDefault();
-      const { sum, fresh, paused } = readPhotoWheel(e);
+      const { sum, fresh } = readPhotoWheel(e);
       if (fresh) photoWheelSpent = false;
       if (photoWheelSpent || state.busy || fingers.size || !canSwipe() || Math.abs(sum) < 30) return;
       const dir = sum > 0 ? 1 : -1;
       const to = swipeTo(dir);
-      // One swipe can cycle through this piece's own photos, but never
-      // carry on past them into the next piece too: that needs a swipe of
-      // its own, begun after this one has genuinely stopped, not just a
-      // hesitation mid-coast that the reader read as a second swipe.
-      if (to.piece !== undefined && !paused) return;
+      if (!to) return;
       photoWheelSpent = true;
       const peek = peeks[dir > 0 ? 1 : 0];
       touch.to = dir > 0 ? [null, to] : [to, null];

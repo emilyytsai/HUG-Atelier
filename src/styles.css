@@ -714,6 +714,7 @@
   .panel {
     position: relative;
     overflow: hidden auto;
+    touch-action: pan-y;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
