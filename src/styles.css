@@ -1598,6 +1598,13 @@
 /* One timing language for every view change: the photo travels on an
    ease-out (moving from the first frame, settling softly), the page around
    it crossfades with the new view arriving while the old one leaves. */
+/* Taps pass through the transition's overlay to the page underneath (already
+   in its new state), so a button pressed mid-transition still answers: its
+   action is queued and plays as soon as the transition ends. Everything
+   below ends with the photo's journey, so nothing lingers after it lands. */
+::view-transition {
+  pointer-events: none;
+}
 ::view-transition-group(hero) {
   /* The photo's frame clips it, as on the page: nothing beside it (the
      neighbouring photos, the dots) is carried along. */
@@ -1618,7 +1625,11 @@
   animation: var(--vt-quick) var(--ease-glide) both fade reverse;
 }
 ::view-transition-new(root) {
-  animation: var(--vt-morph) var(--ease-silk) 60ms both fade;
+  animation: calc(var(--vt-morph) - 60ms) var(--ease-silk) 60ms both fade;
+}
+/* Closing: the panel is gone before the photo crosses where it was. */
+html[data-vt="close"]::view-transition-old(root) {
+  animation-duration: 160ms;
 }
 
 html[data-vt="next"]::view-transition-group(hero),
@@ -1640,16 +1651,16 @@ html[data-vt="close"]::view-transition-old(hero) {
 /* Paging: the old photo is mostly gone before the new one shows, so the two
    are never seen half-transparent over each other. */
 html[data-vt="next"]::view-transition-old(hero) {
-  animation: var(--vt-quick) cubic-bezier(0.4, 0, 1, 1) both vt-out-left;
+  animation: 220ms cubic-bezier(0.4, 0, 1, 1) both vt-out-left;
 }
 html[data-vt="next"]::view-transition-new(hero) {
-  animation: var(--vt-morph) var(--ease-silk) 180ms both vt-in-right;
+  animation: calc(var(--vt-morph) - 220ms) var(--ease-silk) 220ms both vt-in-right;
 }
 html[data-vt="prev"]::view-transition-old(hero) {
-  animation: var(--vt-quick) cubic-bezier(0.4, 0, 1, 1) both vt-out-right;
+  animation: 220ms cubic-bezier(0.4, 0, 1, 1) both vt-out-right;
 }
 html[data-vt="prev"]::view-transition-new(hero) {
-  animation: var(--vt-morph) var(--ease-silk) 180ms both vt-in-left;
+  animation: calc(var(--vt-morph) - 220ms) var(--ease-silk) 220ms both vt-in-left;
 }
 html[data-vt="next"]::view-transition-old(root),
 html[data-vt="prev"]::view-transition-old(root) {
@@ -1657,7 +1668,7 @@ html[data-vt="prev"]::view-transition-old(root) {
 }
 html[data-vt="next"]::view-transition-new(root),
 html[data-vt="prev"]::view-transition-new(root) {
-  animation: var(--vt-morph) var(--ease-silk) 120ms both fade;
+  animation: calc(var(--vt-morph) - 120ms) var(--ease-silk) 120ms both fade;
 }
 /* The photo dots travel on their own: they leave first and arrive once the
    photo has nearly landed, rather than being stretched along with it. */
@@ -1665,7 +1676,7 @@ html[data-vt="prev"]::view-transition-new(root) {
   animation: 160ms ease-in both fade reverse;
 }
 ::view-transition-new(dots) {
-  animation: var(--vt-quick) var(--ease-silk) calc(var(--vt-morph) - 160ms) both fade;
+  animation: var(--vt-quick) var(--ease-silk) calc(var(--vt-morph) - var(--vt-quick)) both fade;
 }
 html[data-vt="next"]::view-transition-group(dots),
 html[data-vt="prev"]::view-transition-group(dots) {
