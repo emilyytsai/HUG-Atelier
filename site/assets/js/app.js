@@ -2589,12 +2589,16 @@
   showNotes();
   // The loading cover steps aside once the first photo and the fonts are
   // ready, not after a flat delay - but never later than a few seconds on a
-  // weak connection. Only then does the logo/caption entrance (is-booting)
-  // play, so it's actually seen instead of finishing underneath the cover.
+  // weak connection, and never sooner than a second even on a fast one, so
+  // it reads as a deliberate beat rather than a flicker. Only then does the
+  // logo/caption entrance (is-booting) play, so it's actually seen instead
+  // of finishing underneath the cover.
   const firstSlideReady = slides[0] ? slides[0].img.decode().catch(() => {}) : Promise.resolve();
   const fontsReady = document.fonts ? document.fonts.ready.catch(() => {}) : Promise.resolve();
   const revealTimeout = new Promise((resolve) => setTimeout(resolve, 3500));
-  Promise.race([Promise.all([firstSlideReady, fontsReady]), revealTimeout]).then(() => {
+  const minShown = new Promise((resolve) => setTimeout(resolve, 1000));
+  const ready = Promise.race([Promise.all([firstSlideReady, fontsReady]), revealTimeout]);
+  Promise.all([ready, minShown]).then(() => {
     document.body.classList.add("is-booting");
     el.loader.classList.add("is-done");
     setTimeout(() => {

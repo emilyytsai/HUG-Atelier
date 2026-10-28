@@ -239,6 +239,12 @@
   .loader-mark {
     animation: loader-breathe 1800ms var(--ease-silk) infinite;
   }
+  .loader-mark .logo-mark {
+    font-size: clamp(2.75rem, 7vw, 5rem);
+  }
+  .loader-mark .logo-sub {
+    font-size: clamp(0.8125rem, 1.6vw, 1rem);
+  }
   @keyframes loader-breathe {
     0%,
     100% {
